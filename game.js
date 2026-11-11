@@ -14,28 +14,22 @@ const COLORS = [
   '#90caf9', // J - azul pálido
   '#ffb74d', // L - orange
   '#b0bec5', // Tuerca - gris metálico
+  '#f06292', // Cruz (+) - rosa
+  '#4db6ac', // U - verde azulado
+  '#dce775', // Y - lima
+  '#ff8a65', // Single 1×1 - coral
 ];
 
 // Variantes más saturadas para buen contraste sobre fondo claro
 const COLORS_LIGHT = [
   null,
   '#00acc1', '#f9a825', '#8e24aa', '#43a047', '#e53935', '#1e88e5', '#fb8c00', '#78909c',
+  '#d81b60', '#00897b', '#9e9d24', '#f4511e',
 ];
 
-const PIECES = [
-  null,
-  [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
-  [[2,2],[2,2]],                               // O
-  [[0,3,0],[3,3,3],[0,0,0]],                  // T
-  [[0,4,4],[4,4,0],[0,0,0]],                  // S
-  [[5,5,0],[0,5,5],[0,0,0]],                  // Z
-  [[6,0,0],[6,6,6],[0,0,0]],                  // J
-  [[0,0,7],[7,7,7],[0,0,0]],                  // L
-  [[8,8,8],[8,0,8],[8,8,8]],                  // Tuerca (reto)
-];
-
-const NUT = 8;
-const NUT_CHANCE = 0.1;
+// Formas y reglas de aparición viven en pieces.js (módulo puro, con tests)
+const PIECES = Pieces.PIECES;
+const NUT = Pieces.NUT;
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
@@ -51,6 +45,7 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeBtn = document.getElementById('theme-toggle');
+const classicBtn = document.getElementById('classic-toggle');
 const muteBtn = document.getElementById('mute-toggle');
 const comboEl = document.getElementById('combo');
 const b2bEl = document.getElementById('b2b');
@@ -60,6 +55,7 @@ let theme = 'dark';
 let gridColor = '#22222e';
 
 let holdPiece, holdUsedThisTurn;
+let classicMode = false, rewardSingle = false, rng = Math.random;
 let scoreState, lastWasRotation, muted = false;
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
@@ -67,50 +63,28 @@ function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
 
+// `rng` es inyectable (ver `setRng`) para generar secuencias reproducibles
 function randomPiece() {
-  const type = Math.random() < NUT_CHANCE ? NUT : Math.floor(Math.random() * 7) + 1;
-  return createPiece(type);
+  return createPiece(Pieces.pickType(rng, level, { CLASSIC: classicMode }));
 }
+
+function setRng(fn) { rng = fn; }
 
 // Pieza en posición y rotación de spawn
 function createPiece(type) {
-  const shape = PIECES[type].map(row => [...row]);
-  return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
+  return Pieces.createPiece(type, COLS);
 }
 
 function collide(shape, ox, oy) {
-  for (let r = 0; r < shape.length; r++) {
-    for (let c = 0; c < shape[r].length; c++) {
-      if (!shape[r][c]) continue;
-      const nx = ox + c;
-      const ny = oy + r;
-      if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
-      if (ny >= 0 && board[ny][nx]) return true;
-    }
-  }
-  return false;
-}
-
-function rotateCW(shape) {
-  const rows = shape.length, cols = shape[0].length;
-  const result = Array.from({ length: cols }, () => new Array(rows).fill(0));
-  for (let r = 0; r < rows; r++)
-    for (let c = 0; c < cols; c++)
-      result[c][rows - 1 - r] = shape[r][c];
-  return result;
+  return Pieces.collides(board, shape, ox, oy);
 }
 
 function tryRotate() {
-  const rotated = rotateCW(current.shape);
-  const kicks = [0, -1, 1, -2, 2];
-  for (const kick of kicks) {
-    if (!collide(rotated, current.x + kick, current.y)) {
-      current.shape = rotated;
-      current.x += kick;
-      lastWasRotation = true; // un kick también cuenta como T-spin completo
-      return;
-    }
-  }
+  const res = Pieces.rotateWithKicks(board, current);
+  if (!res) return;
+  current.shape = res.shape;
+  current.x = res.x;
+  lastWasRotation = true; // un kick también cuenta como T-spin completo
 }
 
 function merge() {
@@ -174,6 +148,8 @@ function lockPiece() {
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   }
+  // Recompensa: tras un Tetris la siguiente pieza de la cola es una 1×1
+  if (cleared === 4 && !classicMode) rewardSingle = true;
   updateHUD();
   showFeedback(result);
   holdUsedThisTurn = false;
@@ -200,7 +176,8 @@ function holdCurrent() {
 function spawn() {
   lastWasRotation = false;
   current = next;
-  next = randomPiece();
+  next = rewardSingle ? createPiece(Pieces.SINGLE) : randomPiece();
+  rewardSingle = false;
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
@@ -441,7 +418,8 @@ function init() {
   lastTime = performance.now();
   holdPiece = null;
   holdUsedThisTurn = false;
-  scoreState = Scoring.createScoreState();
+  rewardSingle = false;
+  scoreState =Scoring.createScoreState();
   lastWasRotation = false;
   popupsEl.textContent = '';
   next = randomPiece();
@@ -495,6 +473,23 @@ muteBtn.addEventListener('click', () => {
   applyMute(!muted);
   muteBtn.blur(); // evita que Space active el botón en vez de hacer hard drop
 });
+
+function applyClassic(on, save = true) {
+  classicMode = on;
+  classicBtn.setAttribute('aria-pressed', String(on));
+  if (save) {
+    try { localStorage.setItem('tetris-classic', on ? '1' : '0'); } catch (_) {}
+  }
+}
+
+classicBtn.addEventListener('click', () => {
+  applyClassic(!classicMode); // afecta a las piezas que se generen a partir de ahora
+  classicBtn.blur();
+});
+
+let savedClassic = null;
+try { savedClassic = localStorage.getItem('tetris-classic'); } catch (_) {}
+applyClassic(savedClassic === '1', false);
 
 let savedMuted = null;
 try { savedMuted = localStorage.getItem('tetris-muted'); } catch (_) {}
