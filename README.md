@@ -86,6 +86,7 @@ Después abre `http://localhost:8000` en el navegador.
 | `↓`       | Soft drop (bajar más rápido)      |
 | `Espacio` | Hard drop (caída instantánea)     |
 | `C` / `Shift` | Hold: reservar pieza (1 uso por pieza) |
+| `E`       | Abrir el selector de habilidades (solo con la barra de energía llena; pausa el juego). Elegir con `1`–`5` o `↑`/`↓` + `Enter`; `Esc` cancela sin gastar energía |
 | `P`       | Pausar / reanudar                 |
 | `T`       | Cambiar tema claro / oscuro       |
 
