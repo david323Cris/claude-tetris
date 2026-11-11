@@ -8,15 +8,21 @@
 </head>
 <body>
   <div class="wrapper">
-    <button id="theme-toggle" class="theme-toggle" role="switch" aria-checked="false" aria-label="Modo claro" title="Cambiar tema (T)">
-      <span aria-hidden="true">🌙</span><span class="switch" aria-hidden="true"></span><span aria-hidden="true">☀️</span>
-    </button>
-    <button id="mute-toggle" class="mute-toggle" aria-pressed="false" aria-label="Silenciar efectos" title="Silenciar efectos (M)">🔊</button>
-    <button id="classic-toggle" class="classic-toggle" aria-pressed="false" title="Modo clásico: solo las 7 piezas estándar">Modo clásico</button>
-    <button id="challenge-btn" class="challenge-btn" title="Elegir un nivel del Modo Desafío">Modo Desafío</button>
+    <div class="toolbar">
+      <button id="mute-toggle" class="mute-toggle" aria-pressed="false" aria-label="Silenciar efectos" title="Silenciar efectos (M)">🔊</button>
+      <button id="classic-toggle" class="classic-toggle" aria-pressed="false" title="Modo clásico: solo las 7 piezas estándar">Modo clásico</button>
+      <button id="challenge-btn" class="challenge-btn" title="Elegir un nivel del Modo Desafío">Modo Desafío</button>
+      <button id="theme-toggle" class="theme-toggle" role="switch" aria-checked="false" aria-label="Modo claro" title="Cambiar tema (T)">
+        <span aria-hidden="true">🌙</span><span class="switch" aria-hidden="true"></span><span aria-hidden="true">☀️</span>
+      </button>
+    </div>
     <h1 class="title">TETRIS</h1>
     <div class="game-container">
-      <aside class="panel panel-left" aria-label="Controles">
+      <aside class="panel panel-left" aria-label="Reserva y controles">
+        <div class="panel-section">
+          <span class="label">HOLD</span>
+          <canvas id="hold-canvas" width="120" height="120"></canvas>
+        </div>
         <div class="panel-section controls">
           <span class="label">CONTROLS</span>
           <ul>
@@ -70,11 +76,6 @@
             <div id="energy-fill" class="energy-fill"></div>
             <span id="energy-text" class="energy-text">0%</span>
           </div>
-        </div>
-
-        <div class="panel-section">
-          <span class="label">HOLD</span>
-          <canvas id="hold-canvas" width="120" height="120"></canvas>
         </div>
 
         <div class="panel-section">

@@ -130,9 +130,7 @@ body {
 
 /* ---- Controles ---- */
 .panel-left {
-  width: 150px;
-  position: sticky;
-  top: 16px;
+  width: 160px;
 }
 
 @media (max-width: 760px) {
@@ -233,10 +231,16 @@ kbd {
 }
 
 /* ---- Toggle de tema ---- */
+.toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.toolbar .theme-toggle { margin-left: auto; }
+
 .theme-toggle {
-  position: absolute;
-  top: 0;
-  right: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -341,9 +345,6 @@ kbd {
 }
 
 .mute-toggle {
-  position: absolute;
-  top: 0;
-  left: 0;
   background: var(--kbd-bg);
   border: 1px solid var(--kbd-border);
   border-radius: 999px;
@@ -352,9 +353,6 @@ kbd {
   cursor: pointer;
 }
 .classic-toggle {
-  position: absolute;
-  top: 40px;
-  left: 0;
   background: var(--kbd-bg);
   border: 1px solid var(--kbd-border);
   border-radius: 999px;
@@ -389,9 +387,6 @@ kbd {
 
 /* ---- Modo desafío ---- */
 .challenge-btn {
-  position: absolute;
-  top: 72px;
-  left: 0;
   background: var(--kbd-bg);
   border: 1px solid var(--kbd-border);
   border-radius: 999px;
