@@ -24,6 +24,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `scoring.js` is a pure module (no DOM; global `Scoring` in the browser, `require` in Node) holding the points table (`SCORING_CONFIG`), combo, T-spin (3-corner rule), B2B and Perfect Clear logic. `game.js` calls `Scoring.detectTSpin` before `merge` and `Scoring.evaluateLock` in `lockPiece`; `lastWasRotation` is set in `tryRotate` and cleared by any move/drop/spawn. Unit tests: `node --test tests/` (Node only needed for tests).
 
+## Power-ups
+
+`powerups.js` is a pure module (global `PowerUps`, `require` in Node) with the effect strategies (`EFFECTS`: bomb, lightning, tint, gravity, freeze, each `apply(board, context)`), `clearFullLines` (wildcard cell = index 13, `WILD`, with chain removal of connected wildcards) and `advanceProgress`. `game.js` marks `next` with `powerUp`/`marked` every 10 cleared lines, triggers the effect in `lockPiece` after `merge` and before `removeFullLines`, and `freezeMs` suppresses gravity in `loop`. Pieces with a power-up can't be held. Tests: `tests/powerups.test.js`.
+
 ## Gotchas
 
 - Canvas size is hard-coded in `index.html` (`#board` 300×600, `#next-canvas` 120×120). If `COLS`, `ROWS` or `BLOCK` change in `game.js`, update the canvas `width`/`height` to match (`COLS*BLOCK` × `ROWS*BLOCK`).
