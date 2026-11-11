@@ -8,6 +8,9 @@
 </head>
 <body>
   <div class="wrapper">
+    <button id="theme-toggle" class="theme-toggle" role="switch" aria-checked="false" aria-label="Modo claro" title="Cambiar tema (T)">
+      <span aria-hidden="true">🌙</span><span class="switch" aria-hidden="true"></span><span aria-hidden="true">☀️</span>
+    </button>
     <h1 class="title">TETRIS</h1>
     <div class="game-container">
       <canvas id="board" width="300" height="600"></canvas>
@@ -39,6 +42,7 @@
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
             <li><kbd>P</kbd> pausa</li>
+            <li><kbd>T</kbd> tema</li>
           </ul>
         </div>
       </aside>
