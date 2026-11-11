@@ -31,9 +31,9 @@ const COLORS_LIGHT = [
 ];
 
 // Formas y reglas de aparición viven en pieces.js (módulo puro, con tests)
-const PIECES = Pieces.PIECES;
-const NUT = Pieces.NUT;
-const WILD = PowerUps.WILD;
+// PIECES, NUT y WILD ya existen como `const` globales declarados en pieces.js / powerups.js
+// (los scripts clásicos comparten el ámbito léxico global). Redeclararlos aquí lanzaría
+// "SyntaxError: Identifier has already been declared" y game.js no se ejecutaría (pantalla vacía).
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
