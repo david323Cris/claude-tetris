@@ -13,6 +13,7 @@
     </button>
     <button id="mute-toggle" class="mute-toggle" aria-pressed="false" aria-label="Silenciar efectos" title="Silenciar efectos (M)">🔊</button>
     <button id="classic-toggle" class="classic-toggle" aria-pressed="false" title="Modo clásico: solo las 7 piezas estándar">Modo clásico</button>
+    <button id="challenge-btn" class="challenge-btn" title="Elegir un nivel del Modo Desafío">Modo Desafío</button>
     <h1 class="title">TETRIS</h1>
     <div class="game-container">
       <div class="board-wrap">
@@ -32,6 +33,11 @@
         <div class="panel-section">
           <span class="label">LEVEL</span>
           <span class="value" id="level">1</span>
+        </div>
+        <div id="challenge-info" class="panel-section challenge-info hidden">
+          <span class="label" id="challenge-name">DESAFÍO</span>
+          <span class="value" id="challenge-timer">0:00.0</span>
+          <span class="challenge-goal" id="challenge-goal"></span>
         </div>
         <div class="panel-section badges">
           <span id="combo" class="badge combo hidden">COMBO x2</span>
@@ -69,7 +75,19 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+        <p id="overlay-detail" class="overlay-detail"></p>
         <button id="restart-btn">Reiniciar</button>
+        <button id="next-level-btn" class="secondary hidden">Siguiente nivel</button>
+        <button id="levels-btn" class="secondary hidden">Niveles</button>
+      </div>
+    </div>
+
+    <div id="level-select" class="overlay level-select hidden" role="dialog" aria-label="Modo Desafío">
+      <div class="overlay-box">
+        <p class="select-title">MODO DESAFÍO</p>
+        <ul id="level-list" class="level-list"></ul>
+        <button id="classic-play-btn" class="secondary">Jugar modo clásico</button>
+        <button id="select-close-btn" class="secondary">Volver</button>
       </div>
     </div>
   </div>
@@ -77,6 +95,13 @@
   <script src="scoring.js"></script>
   <script src="pieces.js"></script>
   <script src="powerups.js"></script>
+  <script src="challenge.js"></script>
+  <!-- Un archivo por nivel: para agregar uno nuevo, crear levels/<id>.js y listarlo aquí -->
+  <script src="levels/sprint.js"></script>
+  <script src="levels/marea-de-basura.js"></script>
+  <script src="levels/tablero-sembrado.js"></script>
+  <script src="levels/a-ciegas.js"></script>
+  <script src="levels/mundo-al-reves.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

@@ -87,9 +87,14 @@ function rotateCW(shape) {
   return result;
 }
 
-// Rota con wall kicks horizontales. Devuelve { shape, x } o null si no cabe.
-function rotateWithKicks(board, piece) {
-  const rotated = rotateCW(piece.shape);
+function rotateCCW(shape) {
+  return rotateCW(rotateCW(rotateCW(shape)));
+}
+
+// Rota con wall kicks horizontales. `dir` = 1 (horario, por defecto) o -1 (antihorario).
+// Devuelve { shape, x } o null si no cabe.
+function rotateWithKicks(board, piece, dir = 1) {
+  const rotated = dir < 0 ? rotateCCW(piece.shape) : rotateCW(piece.shape);
   for (const kick of KICKS) {
     if (!collides(board, rotated, piece.x + kick, piece.y)) {
       return { shape: rotated, x: piece.x + kick };
@@ -100,7 +105,7 @@ function rotateWithKicks(board, piece) {
 
 const Pieces = {
   PIECE_DEFS, PIECES, STANDARD, NUT, PENTOMINOS, SINGLE, SPAWN_CONFIG, KICKS,
-  mulberry32, pickType, createPiece, collides, rotateCW, rotateWithKicks,
+  mulberry32, pickType, createPiece, collides, rotateCW, rotateCCW, rotateWithKicks,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Pieces;

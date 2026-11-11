@@ -19,13 +19,15 @@ const COLORS = [
   '#dce775', // Y - lima
   '#ff8a65', // Single 1×1 - coral
   '#eceff1', // Comodín (Tinte)
+  '#607d8b', // Basura (Modo Desafío)
+  '#8d6e63', // Bloque sembrado (Modo Desafío)
 ];
 
 // Variantes más saturadas para buen contraste sobre fondo claro
 const COLORS_LIGHT = [
   null,
   '#00acc1', '#f9a825', '#8e24aa', '#43a047', '#e53935', '#1e88e5', '#fb8c00', '#78909c',
-  '#d81b60', '#00897b', '#9e9d24', '#f4511e', '#90a4ae',
+  '#d81b60', '#00897b', '#9e9d24', '#f4511e', '#90a4ae', '#455a64', '#6d4c41',
 ];
 
 // Formas y reglas de aparición viven en pieces.js (módulo puro, con tests)
@@ -53,6 +55,26 @@ const comboEl = document.getElementById('combo');
 const b2bEl = document.getElementById('b2b');
 const popupsEl = document.getElementById('popups');
 const freezeEl = document.getElementById('freeze');
+const overlayDetail = document.getElementById('overlay-detail');
+const nextLevelBtn = document.getElementById('next-level-btn');
+const levelsBtn = document.getElementById('levels-btn');
+const challengeBtn = document.getElementById('challenge-btn');
+const levelSelectEl = document.getElementById('level-select');
+const levelListEl = document.getElementById('level-list');
+const challengeInfoEl = document.getElementById('challenge-info');
+const challengeNameEl = document.getElementById('challenge-name');
+const challengeTimerEl = document.getElementById('challenge-timer');
+const challengeGoalEl = document.getElementById('challenge-goal');
+
+// Modo desafío: las reglas viven en challenge.js; aquí solo se aplican al juego.
+let currentLevel = null;   // null = modo clásico
+let challengeRun = null;   // motor de reglas de la partida en curso
+let menuOpen = false;
+let challengeProgress = Challenge.loadProgress(localStorageSafe());
+
+function localStorageSafe() {
+  try { return window.localStorage; } catch (_) { return { getItem() { return null; }, setItem() {} }; }
+}
 
 let theme = 'dark';
 let gridColor = '#22222e';
@@ -86,7 +108,8 @@ function collide(shape, ox, oy) {
 }
 
 function tryRotate() {
-  const res = Pieces.rotateWithKicks(board, current);
+  const dir = challengeRun && challengeRun.rotationInverted() ? -1 : 1;
+  const res = Pieces.rotateWithKicks(board, current, dir);
   if (!res) return;
   current.shape = res.shape;
   current.x = res.x;
@@ -173,6 +196,10 @@ function lockPiece() {
   if (cleared === 4 && !classicMode) rewardSingle = true;
   updateHUD();
   showFeedback(result);
+  if (challengeRun) {
+    challengeRun.onLock({ lines, score });
+    if (checkChallenge()) return; // victoria/derrota: no se genera otra pieza
+  }
   holdUsedThisTurn = false;
   spawn();
 }
@@ -385,9 +412,14 @@ function draw() {
   drawGrid();
 
   // board
+  // A ciegas: las piezas asentadas no se dibujan (siguen ocupando celdas); basura y sembrados sí
+  const hideLocked = challengeRun && challengeRun.hidesLockedPieces();
   for (let r = 0; r < ROWS; r++)
-    for (let c = 0; c < COLS; c++)
-      drawBlock(ctx, c, r, board[r][c], BLOCK);
+    for (let c = 0; c < COLS; c++) {
+      const v = board[r][c];
+      if (hideLocked && v !== Challenge.GARBAGE && v !== Challenge.SEEDED) continue;
+      drawBlock(ctx, c, r, v, BLOCK);
+    }
 
   // ghost
   const gy = ghostY();
@@ -445,24 +477,145 @@ function toggleTheme() {
   applyTheme(theme === 'light' ? 'dark' : 'light');
 }
 
+function setOverlayButtons(challengeResult, canAdvance) {
+  levelsBtn.classList.toggle('hidden', !challengeResult);
+  nextLevelBtn.classList.toggle('hidden', !canAdvance);
+  restartBtn.textContent = challengeResult ? 'Reintentar' : 'Reiniciar';
+}
+
 function endGame() {
+  if (challengeRun) { // top-out en un desafío = derrota
+    challengeRun.lose('topout');
+    checkChallenge();
+    return;
+  }
   gameOver = true;
   cancelAnimationFrame(animId);
   overlayTitle.textContent = 'GAME OVER';
+  overlayTitle.classList.remove('win');
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  overlayDetail.textContent = '';
+  setOverlayButtons(false, false);
   overlay.classList.remove('hidden');
+}
+
+// ---- Modo desafío ----
+
+// Evalúa el motor de reglas; si la partida terminó, muestra el resultado y devuelve true.
+function checkChallenge() {
+  const status = challengeRun.evaluate(board);
+  if (status === 'playing') return false;
+  finishChallenge(status === 'won');
+  return true;
+}
+
+function finishChallenge(won) {
+  gameOver = true;
+  cancelAnimationFrame(animId);
+  const timeMs = challengeRun.state.elapsedMs;
+  const levels = Challenge.getLevels();
+  const idx = levels.findIndex(l => l.id === currentLevel.id);
+  if (won) {
+    challengeProgress = Challenge.recordResult(challengeProgress, currentLevel.id, { won: true, timeMs, score });
+    Challenge.saveProgress(localStorageSafe(), challengeProgress);
+  }
+  const best = challengeProgress.completed[currentLevel.id];
+  const reasons = { timeout: 'Se agotó el tiempo', topout: 'El tablero se llenó' };
+  overlayTitle.textContent = won ? 'VICTORIA' : 'DERROTA';
+  overlayTitle.classList.toggle('win', won);
+  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  overlayDetail.textContent = [
+    `${currentLevel.name} — tiempo: ${Challenge.formatTime(timeMs)}`,
+    won ? '' : (reasons[challengeRun.state.reason] || ''),
+    best ? `Mejor: ${Challenge.formatTime(best.bestTimeMs)} · ${best.bestScore.toLocaleString()} pts` : '',
+  ].filter(Boolean).join('\n');
+  setOverlayButtons(true, won && idx >= 0 && idx < levels.length - 1);
+  overlay.classList.remove('hidden');
+}
+
+function updateChallengeHUD() {
+  if (!challengeRun) return;
+  const s = challengeRun.state;
+  const remaining = challengeRun.remainingMs();
+  challengeTimerEl.textContent = Challenge.formatTime(remaining === null ? s.elapsedMs : remaining);
+  const mods = currentLevel.modifiers;
+  const parts = [];
+  if (mods.targetLines !== undefined) parts.push(`Líneas ${Math.min(lines, mods.targetLines)}/${mods.targetLines}`);
+  if (mods.presetBoard && mods.presetBoard.mustClear) parts.push(`Sembrados: ${Challenge.countSeeded(board)}`);
+  if (mods.invertedRotation && challengeRun.rotationInverted()) parts.push('🔄 Rotación invertida');
+  challengeGoalEl.textContent = parts.join(' · ');
+}
+
+// Sube una fila de basura; si la pieza activa queda dentro de bloques, se empuja hacia arriba.
+function applyGarbage() {
+  const res = Challenge.addGarbageRow(board, rng);
+  board = res.board;
+  if (res.overflow) { endGame(); return; }
+  while (current.y > -2 && collide(current.shape, current.x, current.y)) current.y--;
+  if (collide(current.shape, current.x, current.y)) endGame();
+}
+
+function startChallenge(level) {
+  currentLevel = level;
+  closeLevelSelect();
+  init();
+}
+
+function startClassic() {
+  currentLevel = null;
+  closeLevelSelect();
+  init();
+}
+
+function openLevelSelect() {
+  if (!paused && !gameOver) togglePause();
+  menuOpen = true;
+  const levels = Challenge.getLevels();
+  levelListEl.textContent = '';
+  levels.forEach((lvl, i) => {
+    const unlocked = Challenge.isUnlocked(levels, challengeProgress, i);
+    const best = challengeProgress.completed[lvl.id];
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.className = 'level-item';
+    btn.disabled = !unlocked;
+    const mk = (cls, text) => {
+      const s = document.createElement('span');
+      s.className = cls;
+      s.textContent = text;
+      btn.appendChild(s);
+    };
+    mk('lvl-name', `${unlocked ? (best ? '✔' : '▶') : '🔒'} ${i + 1}. ${lvl.name}`);
+    mk('lvl-meta', lvl.description);
+    mk('lvl-meta', `Objetivo: ${lvl.objective} · Derrota: ${lvl.lose}`);
+    if (best) mk('lvl-meta', `Mejor: ${Challenge.formatTime(best.bestTimeMs)} · ${best.bestScore.toLocaleString()} pts`);
+    btn.addEventListener('click', () => startChallenge(lvl));
+    li.appendChild(btn);
+    levelListEl.appendChild(li);
+  });
+  levelSelectEl.classList.remove('hidden');
+}
+
+function closeLevelSelect() {
+  menuOpen = false;
+  levelSelectEl.classList.add('hidden');
 }
 
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    overlay.classList.add('hidden');
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
     overlayTitle.textContent = 'PAUSA';
     overlayScore.textContent = '';
+    overlayDetail.textContent = '';
+    overlayTitle.classList.remove('win');
+    setOverlayButtons(false, false);
+    restartBtn.textContent = 'Reiniciar';
     overlay.classList.remove('hidden');
   }
 }
@@ -478,6 +631,13 @@ function loop(ts) {
     updateFreezeHUD();
   } else {
     dropAccum += dt;
+  }
+  if (challengeRun) {
+    const { garbageRows } = challengeRun.tick(dt);
+    for (let i = 0; i < garbageRows && !gameOver; i++) applyGarbage();
+    if (!gameOver) checkChallenge(); // puede terminar por tiempo
+    if (gameOver) { draw(); updateChallengeHUD(); return; }
+    updateChallengeHUD();
   }
   if (dropAccum >= dropInterval) {
     dropAccum = 0;
@@ -497,7 +657,12 @@ function loop(ts) {
 }
 
 function init() {
+  challengeRun = currentLevel ? Challenge.createRun(currentLevel) : null;
   board = createBoard();
+  if (challengeRun) board = challengeRun.setupBoard(board);
+  challengeInfoEl.classList.toggle('hidden', !challengeRun);
+  if (currentLevel) challengeNameEl.textContent = currentLevel.name.toUpperCase();
+  setOverlayButtons(false, false);
   score = 0;
   lines = 0;
   level = 1;
@@ -519,12 +684,15 @@ function init() {
   spawn();
   drawHold();
   updateHUD();
+  updateChallengeHUD();
+  overlayTitle.classList.remove('win');
   overlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
+  if (menuOpen) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (e.code === 'KeyT') { toggleTheme(); return; }
   if (e.code === 'KeyM') { applyMute(!muted); return; }
@@ -556,7 +724,16 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
-restartBtn.addEventListener('click', init);
+restartBtn.addEventListener('click', init); // en un desafío, reintenta el mismo nivel
+levelsBtn.addEventListener('click', openLevelSelect);
+nextLevelBtn.addEventListener('click', () => {
+  const levels = Challenge.getLevels();
+  const idx = levels.findIndex(l => l.id === currentLevel.id);
+  if (idx >= 0 && idx < levels.length - 1) startChallenge(levels[idx + 1]);
+});
+challengeBtn.addEventListener('click', () => { openLevelSelect(); challengeBtn.blur(); });
+document.getElementById('classic-play-btn').addEventListener('click', startClassic);
+document.getElementById('select-close-btn').addEventListener('click', closeLevelSelect);
 themeBtn.addEventListener('click', () => {
   toggleTheme();
   themeBtn.blur(); // evita que Space active el botón en vez de hacer hard drop
