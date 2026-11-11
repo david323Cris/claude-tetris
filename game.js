@@ -37,8 +37,6 @@ const PIECES = [
 const NUT = 8;
 const NUT_CHANCE = 0.1;
 
-const LINE_SCORES = [0, 100, 300, 500, 800];
-
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -53,11 +51,16 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeBtn = document.getElementById('theme-toggle');
+const muteBtn = document.getElementById('mute-toggle');
+const comboEl = document.getElementById('combo');
+const b2bEl = document.getElementById('b2b');
+const popupsEl = document.getElementById('popups');
 
 let theme = 'dark';
 let gridColor = '#22222e';
 
 let holdPiece, holdUsedThisTurn;
+let scoreState, lastWasRotation, muted = false;
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
 function createBoard() {
@@ -104,6 +107,7 @@ function tryRotate() {
     if (!collide(rotated, current.x + kick, current.y)) {
       current.shape = rotated;
       current.x += kick;
+      lastWasRotation = true; // un kick también cuenta como T-spin completo
       return;
     }
   }
@@ -116,7 +120,8 @@ function merge() {
         board[current.y + r][current.x + c] = current.shape[r][c];
 }
 
-function clearLines() {
+// Quita las líneas completas del tablero y devuelve cuántas fueron.
+function removeFullLines() {
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; r--) {
     if (board[r].every(v => v !== 0)) {
@@ -126,13 +131,7 @@ function clearLines() {
       r++;
     }
   }
-  if (cleared) {
-    lines += cleared;
-    score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
-    updateHUD();
-  }
+  return cleared;
 }
 
 function ghostY() {
@@ -143,6 +142,7 @@ function ghostY() {
 
 function hardDrop() {
   const gy = ghostY();
+  if (gy > current.y) lastWasRotation = false;
   score += (gy - current.y) * 2;
   current.y = gy;
   lockPiece();
@@ -151,6 +151,7 @@ function hardDrop() {
 function softDrop() {
   if (!collide(current.shape, current.x, current.y + 1)) {
     current.y++;
+    lastWasRotation = false;
     score += 1;
     updateHUD();
   } else {
@@ -159,8 +160,22 @@ function softDrop() {
 }
 
 function lockPiece() {
+  // T-spin se evalúa sobre el tablero sin la pieza fusionada
+  const tspin = Scoring.detectTSpin(board, current.type, current.x, current.y, lastWasRotation);
   merge();
-  clearLines();
+  const cleared = removeFullLines();
+  const result = Scoring.evaluateLock(scoreState, {
+    lines: cleared, tspin, level, boardEmpty: Scoring.isBoardEmpty(board),
+  });
+  scoreState = result.state;
+  score += result.points;
+  if (cleared) {
+    lines += cleared;
+    level = Math.floor(lines / 10) + 1;
+    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+  }
+  updateHUD();
+  showFeedback(result);
   holdUsedThisTurn = false;
   spawn();
 }
@@ -175,6 +190,7 @@ function holdCurrent() {
     const incoming = createPiece(holdPiece);
     holdPiece = type;
     current = incoming;
+    lastWasRotation = false;
     if (collide(current.shape, current.x, current.y)) endGame();
   }
   holdUsedThisTurn = true;
@@ -182,6 +198,7 @@ function holdCurrent() {
 }
 
 function spawn() {
+  lastWasRotation = false;
   current = next;
   next = randomPiece();
   if (collide(current.shape, current.x, current.y)) {
@@ -194,6 +211,71 @@ function updateHUD() {
   scoreEl.textContent = score.toLocaleString();
   linesEl.textContent = lines;
   levelEl.textContent = level;
+  const combo = Scoring.comboOf(scoreState);
+  comboEl.textContent = `COMBO x${combo}`;
+  comboEl.classList.toggle('hidden', combo < 2);
+  b2bEl.classList.toggle('hidden', !scoreState.b2b);
+}
+
+// ---- Feedback: texto emergente, efecto en el tablero y sonido ----
+function showFeedback(result) {
+  if (!result.events.length) return;
+  const combo = result.combo;
+  for (const e of result.events) {
+    const el = document.createElement('div');
+    el.className = `popup popup-${e.kind}`;
+    el.textContent = e.text;
+    popupsEl.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+  }
+  // La intensidad del efecto escala con el combo (y con eventos especiales)
+  const special = result.events.some(e => e.kind !== 'line');
+  const intensity = Math.min(combo + (special ? 2 : 0), 12);
+  canvas.style.setProperty('--fx', intensity);
+  canvas.classList.remove('fx');
+  void canvas.offsetWidth; // reinicia la animación
+  canvas.classList.add('fx');
+  for (const e of result.events) playEvent(e.kind, combo);
+}
+
+let audioCtx = null;
+function tone(freq, start, dur, type = 'square', vol = 0.06) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + start;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur);
+}
+
+function playEvent(kind, combo) {
+  if (muted) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (_) { return; }
+  const up = Math.pow(2, (combo - 1) / 12); // sube un semitono por nivel de combo
+  switch (kind) {
+    case 'line':    tone(440 * up, 0, 0.15, 'triangle'); break;
+    case 'combo':   tone(660 * up, 0.05, 0.12, 'sine'); tone(880 * up, 0.13, 0.12, 'sine'); break;
+    case 'tetris':  tone(523 * up, 0, 0.12, 'sawtooth'); tone(784 * up, 0.1, 0.2, 'sawtooth'); break;
+    case 'tspin':   tone(392 * up, 0, 0.1, 'square'); tone(587 * up, 0.1, 0.1, 'square'); tone(784 * up, 0.2, 0.15, 'square'); break;
+    case 'perfect': [523, 659, 784, 1047].forEach((f, i) => tone(f * up, i * 0.1, 0.25, 'triangle')); break;
+  }
+}
+
+function applyMute(m, save = true) {
+  muted = m;
+  muteBtn.setAttribute('aria-pressed', String(muted));
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+  if (save) {
+    try { localStorage.setItem('tetris-muted', muted ? '1' : '0'); } catch (_) {}
+  }
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
@@ -335,6 +417,7 @@ function loop(ts) {
     dropAccum = 0;
     if (!collide(current.shape, current.x, current.y + 1)) {
       current.y++;
+      lastWasRotation = false;
     } else {
       lockPiece();
     }
@@ -358,6 +441,9 @@ function init() {
   lastTime = performance.now();
   holdPiece = null;
   holdUsedThisTurn = false;
+  scoreState = Scoring.createScoreState();
+  lastWasRotation = false;
+  popupsEl.textContent = '';
   next = randomPiece();
   spawn();
   drawHold();
@@ -370,13 +456,14 @@ function init() {
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyP') { togglePause(); return; }
   if (e.code === 'KeyT') { toggleTheme(); return; }
+  if (e.code === 'KeyM') { applyMute(!muted); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
-      if (!collide(current.shape, current.x - 1, current.y)) current.x--;
+      if (!collide(current.shape, current.x - 1, current.y)) { current.x--; lastWasRotation = false; }
       break;
     case 'ArrowRight':
-      if (!collide(current.shape, current.x + 1, current.y)) current.x++;
+      if (!collide(current.shape, current.x + 1, current.y)) { current.x++; lastWasRotation = false; }
       break;
     case 'ArrowDown':
       softDrop();
@@ -403,6 +490,15 @@ themeBtn.addEventListener('click', () => {
   toggleTheme();
   themeBtn.blur(); // evita que Space active el botón en vez de hacer hard drop
 });
+
+muteBtn.addEventListener('click', () => {
+  applyMute(!muted);
+  muteBtn.blur(); // evita que Space active el botón en vez de hacer hard drop
+});
+
+let savedMuted = null;
+try { savedMuted = localStorage.getItem('tetris-muted'); } catch (_) {}
+applyMute(savedMuted === '1', false);
 
 let savedTheme = null;
 try { savedTheme = localStorage.getItem('tetris-theme'); } catch (_) {}

@@ -254,3 +254,78 @@ kbd {
 .theme-toggle[aria-checked="true"] .switch::after {
   transform: translateX(16px);
 }
+
+/* ---- Combo / B2B / feedback ---- */
+.hidden { display: none; }
+
+.board-wrap { position: relative; }
+
+.badges { gap: 6px; }
+
+.badge {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+.badge.combo { color: var(--accent); }
+.badge.b2b { color: #ffb74d; }
+
+.popups {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 35%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.popup {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-shadow: 0 2px 6px var(--shadow);
+  animation: popup-rise 1.4s ease-out forwards;
+}
+.popup-tspin { color: #ba68c8; }
+.popup-tetris { color: #4dd0e1; }
+.popup-combo { color: #ffb74d; }
+.popup-perfect { color: #ffd54f; font-size: 24px; }
+
+@keyframes popup-rise {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.8); }
+  15%  { opacity: 1; transform: translateY(0) scale(1.1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-30px) scale(1); }
+}
+
+/* Sacudida y destello proporcionales a --fx (1-12); el tamaño del canvas no cambia */
+#board.fx { animation: board-shake 0.35s ease-out; }
+
+@keyframes board-shake {
+  0%   { box-shadow: 0 0 calc(var(--fx, 1) * 6px) var(--accent); transform: translate(calc(var(--fx, 1) * 0.5px), 0); }
+  25%  { transform: translate(calc(var(--fx, 1) * -0.5px), calc(var(--fx, 1) * 0.3px)); }
+  50%  { transform: translate(calc(var(--fx, 1) * 0.3px), calc(var(--fx, 1) * -0.3px)); }
+  100% { box-shadow: 0 0 40px var(--shadow); transform: translate(0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #board.fx { animation: none; }
+}
+
+.mute-toggle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.mute-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
