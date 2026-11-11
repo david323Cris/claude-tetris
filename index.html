@@ -11,9 +11,13 @@
     <button id="theme-toggle" class="theme-toggle" role="switch" aria-checked="false" aria-label="Modo claro" title="Cambiar tema (T)">
       <span aria-hidden="true">🌙</span><span class="switch" aria-hidden="true"></span><span aria-hidden="true">☀️</span>
     </button>
+    <button id="mute-toggle" class="mute-toggle" aria-pressed="false" aria-label="Silenciar efectos" title="Silenciar efectos (M)">🔊</button>
     <h1 class="title">TETRIS</h1>
     <div class="game-container">
-      <canvas id="board" width="300" height="600"></canvas>
+      <div class="board-wrap">
+        <canvas id="board" width="300" height="600"></canvas>
+        <div id="popups" class="popups" aria-live="polite"></div>
+      </div>
 
       <aside class="panel">
         <div class="panel-section">
@@ -27,6 +31,10 @@
         <div class="panel-section">
           <span class="label">LEVEL</span>
           <span class="value" id="level">1</span>
+        </div>
+        <div class="panel-section badges">
+          <span id="combo" class="badge combo hidden">COMBO x2</span>
+          <span id="b2b" class="badge b2b hidden">B2B</span>
         </div>
 
         <div class="panel-section">
@@ -49,6 +57,7 @@
             <li><kbd>C</kbd>/<kbd>Shift</kbd> reservar</li>
             <li><kbd>P</kbd> pausa</li>
             <li><kbd>T</kbd> tema</li>
+            <li><kbd>M</kbd> silenciar</li>
           </ul>
         </div>
       </aside>
@@ -63,6 +72,7 @@
     </div>
   </div>
 
+  <script src="scoring.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
