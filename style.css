@@ -129,6 +129,29 @@ body {
 }
 
 /* ---- Controles ---- */
+.panel-left {
+  width: 150px;
+  position: sticky;
+  top: 16px;
+}
+
+@media (max-width: 760px) {
+  .game-container {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .panel-left {
+    order: 3;
+    width: 100%;
+    position: static;
+  }
+  .panel-left .controls ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+}
+
 .controls ul {
   list-style: none;
   display: flex;
