@@ -43,6 +43,16 @@
           <span id="combo" class="badge combo hidden">COMBO x2</span>
           <span id="b2b" class="badge b2b hidden">B2B</span>
           <span id="freeze" class="badge freeze hidden">❄️ 5.0s</span>
+          <span id="vision" class="badge vision hidden">👁 20.0s</span>
+          <span id="slow" class="badge slow hidden">🐢 10.0s</span>
+        </div>
+
+        <div class="panel-section">
+          <span class="label">ENERGÍA</span>
+          <div id="energy-bar" class="energy-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+            <div id="energy-fill" class="energy-fill"></div>
+            <span id="energy-text" class="energy-text">0%</span>
+          </div>
         </div>
 
         <div class="panel-section">
@@ -53,6 +63,8 @@
         <div class="panel-section">
           <span class="label">NEXT</span>
           <canvas id="next-canvas" width="120" height="120"></canvas>
+          <!-- Visión: 4 piezas más (60 px cada una) mientras dura el efecto -->
+          <canvas id="vision-canvas" class="hidden" width="120" height="240"></canvas>
         </div>
 
         <div class="panel-section controls">
@@ -63,6 +75,7 @@
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
             <li><kbd>C</kbd>/<kbd>Shift</kbd> reservar</li>
+            <li><kbd>E</kbd> habilidad</li>
             <li><kbd>P</kbd> pausa</li>
             <li><kbd>T</kbd> tema</li>
             <li><kbd>M</kbd> silenciar</li>
@@ -90,11 +103,20 @@
         <button id="select-close-btn" class="secondary">Volver</button>
       </div>
     </div>
+
+    <div id="ability-select" class="overlay level-select hidden" role="dialog" aria-label="Habilidades">
+      <div class="overlay-box">
+        <p id="ability-title" class="select-title">HABILIDADES</p>
+        <ul id="ability-list" class="level-list"></ul>
+        <p class="overlay-detail">1–5 o ↑↓ + Enter · Esc cancela</p>
+      </div>
+    </div>
   </div>
 
   <script src="scoring.js"></script>
   <script src="pieces.js"></script>
   <script src="powerups.js"></script>
+  <script src="abilities.js"></script>
   <script src="challenge.js"></script>
   <!-- Un archivo por nivel: para agregar uno nuevo, crear levels/<id>.js y listarlo aquí -->
   <script src="levels/sprint.js"></script>

@@ -65,6 +65,16 @@ const challengeInfoEl = document.getElementById('challenge-info');
 const challengeNameEl = document.getElementById('challenge-name');
 const challengeTimerEl = document.getElementById('challenge-timer');
 const challengeGoalEl = document.getElementById('challenge-goal');
+const energyBarEl = document.getElementById('energy-bar');
+const energyFillEl = document.getElementById('energy-fill');
+const energyTextEl = document.getElementById('energy-text');
+const visionEl = document.getElementById('vision');
+const slowEl = document.getElementById('slow');
+const visionCanvas = document.getElementById('vision-canvas');
+const visionCtx = visionCanvas.getContext('2d');
+const abilitySelectEl = document.getElementById('ability-select');
+const abilityTitleEl = document.getElementById('ability-title');
+const abilityListEl = document.getElementById('ability-list');
 
 // Modo desafío: las reglas viven en challenge.js; aquí solo se aplican al juego.
 let currentLevel = null;   // null = modo clásico
@@ -85,7 +95,9 @@ let scoreState, lastWasRotation, muted = false;
 let powerProgress, freezeMs; // líneas hacia el próximo power-up / ms de Congelar restantes
 const powerUpOptions = { axis: PowerUps.POWERUP_CONFIG.LIGHTNING_AXIS, freezeMs: PowerUps.POWERUP_CONFIG.FREEZE_MS };
 const powerUpEvery = PowerUps.POWERUP_CONFIG.EVERY_LINES;
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let ab, abilityMenu = null, pieceStartScore; // habilidades: estado (energía/timers/instantánea) y selector (null = cerrado)
+let queue; // cola de piezas: queue[0] = NEXT; Visión muestra las 5
+let board, current, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -97,6 +109,8 @@ function randomPiece() {
 }
 
 function setRng(fn) { rng = fn; }
+
+const QUEUE_SIZE = 5;
 
 // Pieza en posición y rotación de spawn
 function createPiece(type) {
@@ -135,6 +149,7 @@ function removeFullLines() {
 function applyPowerUpMark(piece) {
   piece.powerUp = PowerUps.pickKind(rng);
   piece.marked = PowerUps.pickMarkedCell(piece.shape, rng);
+  piece.spawnMarked = { ...piece.marked }; // para recrear la pieza en Deshacer
 }
 
 // Efecto del power-up de la pieza que se acaba de fusionar
@@ -173,6 +188,11 @@ function softDrop() {
 }
 
 function lockPiece() {
+  // Instantánea para Deshacer (solo la última pieza), antes de tocar el tablero
+  ab = { ...ab, snapshot: Abilities.takeSnapshot({
+    board, score: pieceStartScore, lines, level, dropInterval, scoreState, powerProgress, freezeMs,
+    holdPiece, holdUsedThisTurn, queue, rewardSingle, piece: current,
+  }) };
   // T-spin se evalúa sobre el tablero sin la pieza fusionada
   const tspin = Scoring.detectTSpin(board, current.type, current.x, current.y, lastWasRotation);
   merge();
@@ -190,8 +210,9 @@ function lockPiece() {
     // Cada N líneas, la siguiente pieza lleva un power-up
     const adv = PowerUps.advanceProgress(powerProgress, cleared, powerUpEvery);
     powerProgress = adv.progress;
-    if (adv.triggered && !next.powerUp) applyPowerUpMark(next);
+    if (adv.triggered && !queue[0].powerUp) applyPowerUpMark(queue[0]);
   }
+  ab = Abilities.gainEnergy(ab, cleared);
   // Recompensa: tras un Tetris la siguiente pieza de la cola es una 1×1
   if (cleared === 4 && !classicMode) rewardSingle = true;
   updateHUD();
@@ -223,9 +244,11 @@ function holdCurrent() {
 
 function spawn() {
   lastWasRotation = false;
-  current = next;
-  next = rewardSingle ? createPiece(Pieces.SINGLE) : randomPiece();
+  current = queue.shift();
+  queue.push(randomPiece());
+  if (rewardSingle) queue[0] = createPiece(Pieces.SINGLE); // la siguiente de la cola
   rewardSingle = false;
+  pieceStartScore = score;
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
@@ -241,11 +264,151 @@ function updateHUD() {
   comboEl.classList.toggle('hidden', combo < 2);
   b2bEl.classList.toggle('hidden', !scoreState.b2b);
   updateFreezeHUD();
+  updateAbilityHUD();
 }
 
 function updateFreezeHUD() {
   freezeEl.classList.toggle('hidden', freezeMs <= 0);
   if (freezeMs > 0) freezeEl.textContent = `❄️ ${(freezeMs / 1000).toFixed(1)}s`;
+}
+
+function updateAbilityHUD() {
+  const pct = Math.round(ab.energy);
+  const ready = Abilities.isReady(ab);
+  energyFillEl.style.width = `${pct}%`;
+  energyTextEl.textContent = ready ? 'LISTA (E)' : `${pct}%`;
+  energyBarEl.classList.toggle('ready', ready);
+  energyBarEl.setAttribute('aria-valuenow', String(pct));
+  visionEl.classList.toggle('hidden', ab.visionMs <= 0);
+  if (ab.visionMs > 0) visionEl.textContent = `👁 ${(ab.visionMs / 1000).toFixed(1)}s`;
+  slowEl.classList.toggle('hidden', ab.slowMs <= 0);
+  if (ab.slowMs > 0) slowEl.textContent = `🐢 ${(ab.slowMs / 1000).toFixed(1)}s`;
+  const showVision = ab.visionMs > 0;
+  if (visionCanvas.classList.contains('hidden') === showVision) { // cambió el estado de Visión
+    visionCanvas.classList.toggle('hidden', !showVision);
+    drawNext();
+  }
+}
+
+// ---- Habilidades: selector (el juego queda en pausa mientras está abierto) ----
+function openAbilitySelect() {
+  if (abilityMenu || paused || gameOver || menuOpen || !Abilities.isReady(ab)) return;
+  cancelAnimationFrame(animId); // sin loop no corren los timers: la pausa no consume tiempo
+  abilityMenu = { mode: 'list', index: 0, choices: [] };
+  renderAbilityMenu();
+}
+
+// Cierra el selector (Esc = sin gastar energía; también se usa tras activar una habilidad)
+function closeAbilitySelect() {
+  abilityMenu = null;
+  abilitySelectEl.classList.add('hidden');
+  if (gameOver || paused) return;
+  lastTime = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
+function renderAbilityMenu() {
+  const swap = abilityMenu.mode === 'swap';
+  abilityTitleEl.textContent = swap ? 'ELIGE UNA PIEZA' : 'HABILIDADES';
+  abilityListEl.textContent = '';
+  const entries = swap
+    ? abilityMenu.choices.map(t => ({ name: Pieces.PIECE_DEFS[t].name, type: t }))
+    : Abilities.ABILITIES.map(a => ({ name: `${a.icon} ${a.name}`, description: a.description, disabled: !a.canUse(ab, {}) }));
+  entries.forEach((en, i) => {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.className = 'level-item' + (i === abilityMenu.index ? ' selected' : '');
+    btn.disabled = !!en.disabled;
+    const name = document.createElement('span');
+    name.className = 'lvl-name';
+    name.textContent = `${i + 1}. ${en.name}`;
+    btn.appendChild(name);
+    if (en.type) {
+      const cv = document.createElement('canvas');
+      cv.width = 120; cv.height = 90;
+      btn.appendChild(cv);
+      drawQueuePiece(cv.getContext('2d'), createPiece(en.type), 22, 120, 90, 0);
+    } else {
+      const d = document.createElement('span');
+      d.className = 'lvl-meta';
+      d.textContent = en.description;
+      btn.appendChild(d);
+    }
+    btn.addEventListener('click', () => { abilityMenu.index = i; confirmAbility(); btn.blur(); });
+    li.appendChild(btn);
+    abilityListEl.appendChild(li);
+  });
+  abilitySelectEl.classList.remove('hidden');
+}
+
+function confirmAbility() {
+  if (!abilityMenu) return;
+  if (abilityMenu.mode === 'swap') {
+    const piece = createPiece(abilityMenu.choices[abilityMenu.index]);
+    if (collide(piece.shape, piece.x, piece.y)) return; // no cabe: no se gasta energía
+    applyAbility('swap', { choice: piece });
+    return;
+  }
+  const def = Abilities.ABILITIES[abilityMenu.index];
+  if (!def || !def.canUse(ab, {})) return; // p. ej. Deshacer sin instantánea
+  if (def.id === 'swap') { // segundo paso: 3 opciones aleatorias del pool
+    const pool = Abilities.swapPool(Pieces, classicMode);
+    abilityMenu = { mode: 'swap', index: 0, choices: Abilities.pickSwapChoices(rng, pool) };
+    renderAbilityMenu();
+    return;
+  }
+  applyAbility(def.id, { board });
+}
+
+function applyAbility(id, ctx) {
+  const res = Abilities.activate(id, ab, ctx);
+  if (!res.ok) return;
+  ab = res.state;
+  if (res.swapTo) { current = res.swapTo; lastWasRotation = false; }
+  if (res.board) board = res.board;
+  if (res.restore) restoreSnapshot(res.restore);
+  closeAbilitySelect();
+  updateHUD();
+  drawNext();
+  drawHold();
+  draw();
+  if (res.board && challengeRun && !gameOver) checkChallenge(); // Limpieza puede cumplir el objetivo
+}
+
+// Deshacer: vuelve al estado previo a la última pieza y la recrea en su posición de aparición.
+// La energía ganada con esa pieza no se devuelve.
+function restoreSnapshot(s) {
+  board = s.board.map(r => r.slice());
+  score = s.score; lines = s.lines; level = s.level; dropInterval = s.dropInterval;
+  scoreState = { ...s.scoreState };
+  powerProgress = s.powerProgress; freezeMs = s.freezeMs;
+  holdPiece = s.holdPiece; holdUsedThisTurn = s.holdUsedThisTurn;
+  queue = s.queue.map(p => ({ ...p, shape: p.shape.map(r => r.slice()) }));
+  rewardSingle = s.rewardSingle;
+  current = createPiece(s.piece.type);
+  if (s.piece.powerUp) {
+    current.powerUp = s.piece.powerUp;
+    current.marked = { ...s.piece.marked };
+    current.spawnMarked = { ...s.piece.marked };
+  }
+  pieceStartScore = score;
+  lastWasRotation = false;
+}
+
+// Teclado con el selector abierto: 1–5, ↑↓ + Enter, Esc cancela
+function abilityKey(e) {
+  const n = abilityMenu.mode === 'swap' ? abilityMenu.choices.length : Abilities.ABILITIES.length;
+  if (e.code === 'Escape') { closeAbilitySelect(); return; }
+  if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); confirmAbility(); return; }
+  const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+  if (m) {
+    if (Number(m[1]) <= n) { abilityMenu.index = Number(m[1]) - 1; confirmAbility(); }
+    return;
+  }
+  if (e.code !== 'ArrowUp' && e.code !== 'ArrowDown') return;
+  e.preventDefault();
+  abilityMenu.index = (abilityMenu.index + (e.code === 'ArrowDown' ? 1 : n - 1)) % n;
+  renderAbilityMenu();
 }
 
 // Animación (clase en el tablero), texto y sonido propios de cada efecto
@@ -452,8 +615,24 @@ function drawPreview(context, cvs, piece, dimmed) {
   if (piece.powerUp) drawPowerMark(context, offX + piece.marked.c, offY + piece.marked.r, piece.powerUp, NB, alpha);
 }
 
+// Pieza centrada en un área de areaW×areaH px que empieza en `top` px, con bloques de `size` px
+function drawQueuePiece(context, piece, size, areaW, areaH, top) {
+  const shape = piece.shape;
+  const offX = (areaW / size - shape[0].length) / 2;
+  const offY = top / size + (areaH / size - shape.length) / 2;
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      drawBlock(context, offX + c, offY + r, shape[r][c], size);
+  if (piece.type === NUT) drawNutHole(context, offX + 1, offY + 1, size);
+}
+
 function drawNext() {
-  drawPreview(nextCtx, nextCanvas, next, false);
+  drawPreview(nextCtx, nextCanvas, queue[0], false);
+  // Visión: las 4 piezas siguientes (junto a NEXT son las próximas 5)
+  if (ab.visionMs > 0) {
+    visionCtx.clearRect(0, 0, visionCanvas.width, visionCanvas.height);
+    for (let i = 1; i < QUEUE_SIZE; i++) drawQueuePiece(visionCtx, queue[i], 15, 120, 60, (i - 1) * 60);
+  }
 }
 
 function drawHold() {
@@ -470,7 +649,7 @@ function applyTheme(t, save = true) {
     try { localStorage.setItem('tetris-theme', theme); } catch (_) {}
   }
   // Repintar (el loop está cancelado en pausa / game over)
-  if (current && next) { draw(); drawNext(); drawHold(); }
+  if (current && queue) { draw(); drawNext(); drawHold(); }
 }
 
 function toggleTheme() {
@@ -568,6 +747,7 @@ function startClassic() {
 }
 
 function openLevelSelect() {
+  if (abilityMenu) closeAbilitySelect(); // cancela el selector de habilidades sin gastar energía
   if (!paused && !gameOver) togglePause();
   menuOpen = true;
   const levels = Challenge.getLevels();
@@ -639,7 +819,11 @@ function loop(ts) {
     if (gameOver) { draw(); updateChallengeHUD(); return; }
     updateChallengeHUD();
   }
-  if (dropAccum >= dropInterval) {
+  if (ab.visionMs > 0 || ab.slowMs > 0) { // timers de Visión/Ralentizar: avanzan solo con el loop
+    ab = Abilities.tick(ab, dt);
+    updateAbilityHUD();
+  }
+  if (dropAccum >= Abilities.effectiveInterval(ab, dropInterval)) {
     dropAccum = 0;
     if (!collide(current.shape, current.x, current.y + 1)) {
       current.y++;
@@ -649,7 +833,7 @@ function loop(ts) {
     }
   }
   draw();
-  if (next && next.powerUp) drawNext(); // el indicador del preview pulsa
+  if (queue[0].powerUp) drawNext(); // el indicador del preview pulsa
   // endGame() pudo ejecutarse dentro de este frame (lockPiece → spawn);
   // cancelAnimationFrame no cancela el frame en curso, así que no re-agendar.
   if (gameOver) return;
@@ -680,7 +864,10 @@ function init() {
   scoreState =Scoring.createScoreState();
   lastWasRotation = false;
   popupsEl.textContent = '';
-  next = randomPiece();
+  ab = Abilities.createState();
+  abilityMenu = null;
+  abilitySelectEl.classList.add('hidden');
+  queue = Array.from({ length: QUEUE_SIZE }, randomPiece);
   spawn();
   drawHold();
   updateHUD();
@@ -693,6 +880,8 @@ function init() {
 
 document.addEventListener('keydown', e => {
   if (menuOpen) return;
+  if (abilityMenu) { abilityKey(e); return; }
+  if (e.code === 'KeyE') { openAbilitySelect(); return; } // solo abre con la barra llena
   if (e.code === 'KeyP') { togglePause(); return; }
   if (e.code === 'KeyT') { toggleTheme(); return; }
   if (e.code === 'KeyM') { applyMute(!muted); return; }
