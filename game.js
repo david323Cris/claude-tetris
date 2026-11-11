@@ -913,6 +913,22 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
+// Controles táctiles: reutilizan el manejador de teclado (repiten al mantener ← → ↓)
+document.querySelectorAll('.touch-controls button').forEach(btn => {
+  const fire = () => document.dispatchEvent(new KeyboardEvent('keydown', { code: btn.dataset.key, cancelable: true }));
+  let timer = null;
+  const stop = () => { clearTimeout(timer); clearInterval(timer); timer = null; };
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    fire();
+    if (/^Arrow(Left|Right|Down)$/.test(btn.dataset.key)) {
+      timer = setTimeout(() => { timer = setInterval(fire, 80); }, 220);
+    }
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => btn.addEventListener(ev, stop));
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+});
+
 restartBtn.addEventListener('click', init); // en un desafío, reintenta el mismo nivel
 levelsBtn.addEventListener('click', openLevelSelect);
 nextLevelBtn.addEventListener('click', () => {

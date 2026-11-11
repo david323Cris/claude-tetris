@@ -38,6 +38,7 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 ## Gotchas
 
+- Responsive: `#board` is scaled via CSS (`height` from viewport, `aspect-ratio: 1/2`); the canvas keeps its 300×600 internal resolution. Narrow/touch screens (`@media` in `style.css`) shrink the side panels, hide the keyboard controls list and show `.touch-controls` (buttons with `data-key` that dispatch synthetic `keydown` events handled by the same listener in `game.js`).
 - Canvas size is hard-coded in `index.html` (`#board` 300×600, `#next-canvas` 120×120). If `COLS`, `ROWS` or `BLOCK` change in `game.js`, update the canvas `width`/`height` to match (`COLS*BLOCK` × `ROWS*BLOCK`).
 - Level speed formula is duplicated in `clearLines` (`max(100, 1000 - (level-1)*90)`) and the initial `1000` in `init`.
 - The README controls table mentions `X` for rotate in addition to `↑`; the on-page controls list does not.

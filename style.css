@@ -50,7 +50,10 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .wrapper {
@@ -77,8 +80,13 @@ body {
   align-items: flex-start;
 }
 
+/* El canvas conserva 300x600 internos; el tamaño visible se ajusta a la pantalla */
 #board {
   display: block;
+  height: min(600px, calc(100vh - 130px));
+  height: min(600px, calc(100dvh - 130px));
+  width: auto;
+  aspect-ratio: 1 / 2;
   border: 1px solid var(--border);
   background: var(--board-bg);
   border-radius: 4px;
@@ -133,21 +141,59 @@ body {
   width: 160px;
 }
 
-@media (max-width: 760px) {
-  .game-container {
-    flex-wrap: wrap;
-    justify-content: center;
+/* ---- Controles táctiles (ocultos en escritorio) ---- */
+.touch-controls { display: none; }
+
+/* Pantallas estrechas o táctiles: todo en una sola vista, sin scroll */
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1024px) {
+  body { overflow: hidden; touch-action: manipulation; }
+  .wrapper { gap: 6px; width: 100%; padding: 6px 8px; }
+  .title { font-size: 20px; letter-spacing: 5px; padding-left: 5px; }
+  .toolbar { gap: 6px; justify-content: center; }
+  .toolbar .theme-toggle { margin-left: 0; }
+  .game-container { gap: 8px; justify-content: center; width: 100%; }
+  .panel { width: 84px; gap: 10px; padding-top: 0; flex-shrink: 0; }
+  .panel-left { width: 64px; }
+  .panel-left .controls { display: none; }
+  .panel-section { gap: 3px; }
+  .value { font-size: 17px; }
+  .badge { font-size: 12px; }
+  #hold-canvas, #next-canvas, #vision-canvas, .energy-bar { width: 100%; height: auto; }
+  .energy-bar { height: 18px; }
+  .challenge-goal { max-width: 84px; font-size: 10px; }
+  .challenge-info .value { font-size: 15px; }
+  /* alto: pantalla - cabecera - botones táctiles; ancho: lo que sobre junto a los paneles */
+  #board {
+    height: min(calc(100vh - 200px), calc((100vw - 84px - 64px - 40px) * 2));
+    height: min(calc(100dvh - 200px), calc((100vw - 84px - 64px - 40px) * 2));
   }
-  .panel-left {
-    order: 3;
+  .touch-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
     width: 100%;
-    position: static;
+    max-width: 420px;
   }
-  .panel-left .controls ul {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 6px 14px;
+  .touch-controls button {
+    min-height: 44px;
+    background: var(--kbd-bg);
+    color: var(--text);
+    border: 1px solid var(--kbd-border);
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    touch-action: none;
   }
+  .touch-controls button:active { background: var(--accent); color: var(--accent-text); }
+  .overlay-box { padding: 8px; max-height: 100%; }
+  .level-list { max-height: 55vh; overflow: auto; }
+}
+
+/* Móvil apaisado: se oculta el título para ganar alto */
+@media (max-height: 480px) and (orientation: landscape) and (pointer: coarse) {
+  .title { display: none; }
+  #board { height: calc(100dvh - 130px); }
+  .touch-controls { max-width: 300px; }
 }
 
 .controls ul {
