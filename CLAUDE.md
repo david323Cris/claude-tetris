@@ -15,7 +15,7 @@ Open `index.html` directly, or serve statically (e.g. `python -m http.server 800
 Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all logic, one global script with `'use strict'`, no modules).
 
 - `game.js` keeps all state in top-level `let` variables (`board`, `current`, `next`, `score`, `lines`, `level`, `paused`, `gameOver`, `dropInterval`, `animId`, ...), reset by `init()`. Restart button calls `init()` again.
-- Board is a `ROWS × COLS` matrix of `0` or a piece-type index 1–7; the same index selects the entry in `COLORS` and `PIECES` (index 0 is `null` in both).
+- Board is a `ROWS × COLS` matrix of `0` or a piece-type index 1–8 (8 = Tuerca, pieza reto 3x3 con hueco; se dibuja con `drawNutHole`, probabilidad `NUT_CHANCE`); the same index selects the entry in `COLORS` and `PIECES` (index 0 is `null` in both).
 - Flow: `loop` (requestAnimationFrame) → gravity drop → `lockPiece` → `merge` → `clearLines` → `spawn`. `spawn` calls `endGame` if the new piece collides. Keyboard handling is a single `keydown` listener at the bottom.
 - Pausing/game over cancels the animation frame (`cancelAnimationFrame(animId)`); `togglePause` restarts `loop` manually, resetting `lastTime`.
 - Rotation (`tryRotate`) is clockwise only, with simple horizontal kicks `[0, -1, 1, -2, 2]` (not SRS). Spawn uses random piece selection, not a 7-bag.
