@@ -58,6 +58,14 @@ let holdPiece, holdUsedThisTurn;
 let classicMode = false, rewardSingle = false, rng = Math.random;
 let scoreState, lastWasRotation, muted = false;
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+// Habilidades: `queue` son las próximas piezas (next === queue[0]); `selector` != null con el menú abierto
+let abState, queue, snapshot, selector;
+const energyEl = document.getElementById('energy');
+const energyFillEl = document.getElementById('energy-fill');
+const energyTextEl = document.getElementById('energy-text');
+const selectorEl = document.getElementById('selector');
+const selectorTitleEl = document.getElementById('selector-title');
+const selectorListEl = document.getElementById('selector-list');
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -134,6 +142,12 @@ function softDrop() {
 }
 
 function lockPiece() {
+  // Solo la última instantánea, tomada antes de asentar la pieza (para Deshacer)
+  snapshot = Abilities.takeSnapshot({
+    board, score, lines, level, dropInterval, scoreState,
+    currentType: current.type, queueTypes: queue.map(p => p.type),
+    holdPiece, holdUsedThisTurn, rewardSingle,
+  });
   // T-spin se evalúa sobre el tablero sin la pieza fusionada
   const tspin = Scoring.detectTSpin(board, current.type, current.x, current.y, lastWasRotation);
   merge();
@@ -147,6 +161,8 @@ function lockPiece() {
     lines += cleared;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    abState = Abilities.addEnergy(abState, cleared);
+    updateEnergy();
   }
   // Recompensa: tras un Tetris la siguiente pieza de la cola es una 1×1
   if (cleared === 4 && !classicMode) rewardSingle = true;
@@ -175,8 +191,9 @@ function holdCurrent() {
 
 function spawn() {
   lastWasRotation = false;
-  current = next;
-  next = rewardSingle ? createPiece(Pieces.SINGLE) : randomPiece();
+  current = queue.shift();
+  queue.push(rewardSingle ? createPiece(Pieces.SINGLE) : randomPiece());
+  next = queue[0];
   rewardSingle = false;
   if (collide(current.shape, current.x, current.y)) {
     endGame();
@@ -324,22 +341,145 @@ function draw() {
   if (current.type === NUT) drawNutHole(ctx, current.x + 1, current.y + 1, BLOCK);
 }
 
-function drawPreview(context, cvs, piece, dimmed) {
-  const NB = 30;
+function drawPreview(context, cvs, piece, dimmed, NB = 30, ox = 0, oy = 0, clear = true) {
   const alpha = dimmed ? 0.35 : 1;
-  context.clearRect(0, 0, cvs.width, cvs.height);
+  if (clear) context.clearRect(0, 0, cvs.width, cvs.height);
   if (!piece) return;
   const shape = piece.shape;
   const offX = Math.floor((4 - shape[0].length) / 2);
   const offY = Math.floor((4 - shape.length) / 2);
+  // ox/oy desplazan la pieza (en px) para dibujar varias en el mismo canvas
+  context.save();
+  context.translate(ox, oy);
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       drawBlock(context, offX + c, offY + r, shape[r][c], NB, alpha);
   if (piece.type === NUT) drawNutHole(context, offX + 1, offY + 1, NB, alpha);
+  context.restore();
 }
 
 function drawNext() {
-  drawPreview(nextCtx, nextCanvas, next, false);
+  if (Abilities.isActive(abState, 'vision')) {
+    // Visión: 5 piezas pequeñas (3 columnas × 2 filas) en el mismo canvas de 120×120
+    nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+    queue.slice(0, Abilities.ABILITY_CONFIG.VISION_COUNT).forEach((p, i) =>
+      drawPreview(nextCtx, nextCanvas, p, false, 10, (i % 3) * 40, Math.floor(i / 3) * 40, false));
+  } else {
+    drawPreview(nextCtx, nextCanvas, next, false);
+  }
+}
+
+// ---- Energía y habilidades ----
+function updateEnergy() {
+  const ready = Abilities.isReady(abState);
+  energyFillEl.style.width = abState.energy + '%';
+  energyTextEl.textContent = ready ? 'LISTA (E)' : abState.energy + '%';
+  energyEl.classList.toggle('ready', ready);
+}
+
+const gameApi = {
+  startEffect(name) {
+    const ms = name === 'vision' ? Abilities.ABILITY_CONFIG.VISION_MS : Abilities.ABILITY_CONFIG.SLOW_MS;
+    abState = Abilities.startEffect(abState, name, ms);
+    drawNext();
+  },
+  undo() {
+    if (!snapshot) return false;
+    const s = snapshot;
+    snapshot = null;
+    board = s.board;
+    score = s.score; lines = s.lines; level = s.level; dropInterval = s.dropInterval;
+    scoreState = s.scoreState;
+    holdPiece = s.holdPiece; holdUsedThisTurn = s.holdUsedThisTurn; rewardSingle = s.rewardSingle;
+    current = createPiece(s.currentType);
+    queue = s.queueTypes.map(createPiece);
+    next = queue[0];
+    lastWasRotation = false;
+    dropAccum = 0;
+    updateHUD(); drawNext(); drawHold();
+    return true;
+  },
+  clearBottom() {
+    board = Abilities.clearBottomRow(board);
+    // El contenido baja una fila y podría solaparse con la pieza activa: subirla hasta que quepa
+    while (collide(current.shape, current.x, current.y) && current.y > -2) current.y--;
+  },
+  beginSwap() {
+    const pool = classicMode ? Pieces.STANDARD : [...Pieces.STANDARD, Pieces.NUT, ...Pieces.PENTOMINOS];
+    openSelector({ mode: 'swap', options: Abilities.pickOptions(rng, pool), index: 0 });
+  },
+};
+
+function renderSelector() {
+  selectorEl.classList.remove('hidden');
+  selectorListEl.textContent = '';
+  const items = selector.mode === 'swap'
+    ? selector.options.map(t => ({ name: ['', 'I', 'O', 'T', 'S', 'Z', 'J', 'L', 'Tuerca', 'Cruz', 'U', 'Y', '1×1'][t], desc: '' }))
+    : Abilities.ABILITIES;
+  selectorTitleEl.textContent = selector.mode === 'swap' ? 'ELIGE UNA PIEZA' : 'HABILIDADES';
+  items.forEach((a, i) => {
+    const li = document.createElement('li');
+    li.className = i === selector.index ? 'sel' : '';
+    li.innerHTML = '<kbd></kbd> <b></b> <small></small>';
+    li.children[0].textContent = i + 1;
+    li.children[1].textContent = a.name;
+    li.children[2].textContent = a.desc;
+    li.addEventListener('click', () => chooseSelector(i));
+    selectorListEl.appendChild(li);
+  });
+}
+
+// Abre el selector pausando el juego (el loop se cancela, así los timers no avanzan)
+function openSelector(state) {
+  selector = state;
+  paused = true;
+  cancelAnimationFrame(animId);
+  renderSelector();
+}
+
+function closeSelector() {
+  selector = null;
+  selectorEl.classList.add('hidden');
+  paused = false;
+  lastTime = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
+function requestSelector() {
+  if (paused || gameOver || !Abilities.isReady(abState)) return;
+  openSelector({ mode: 'menu', index: 0 });
+}
+
+function chooseSelector(i) {
+  if (selector.mode === 'swap') {
+    const piece = createPiece(selector.options[i]);
+    if (collide(piece.shape, piece.x, piece.y)) return; // no cabe: elegir otra
+    current = piece;
+    lastWasRotation = false;
+    abState = Abilities.spend(abState);
+    updateEnergy();
+    closeSelector();
+    draw();
+    return;
+  }
+  const id = Abilities.ABILITIES[i].id;
+  const before = abState;
+  abState = Abilities.use(abState, id, gameApi);
+  if (selector && selector.mode === 'swap') return; // Intercambio: sigue el sub-menú
+  if (abState === before) return;                   // no aplicable (p. ej. Deshacer sin instantánea)
+  updateEnergy();
+  closeSelector();
+  draw();
+}
+
+function selectorKey(e) {
+  const n = selector.mode === 'swap' ? selector.options.length : Abilities.ABILITIES.length;
+  if (e.code === 'Escape') {
+    closeSelector(); // cancelar no gasta energía
+  } else if (e.code === 'ArrowUp') { selector.index = (selector.index + n - 1) % n; renderSelector(); }
+  else if (e.code === 'ArrowDown') { selector.index = (selector.index + 1) % n; renderSelector(); }
+  else if (e.code === 'Enter') chooseSelector(selector.index);
+  else if (/^Digit[1-9]$/.test(e.code) && +e.code.slice(5) <= n) chooseSelector(+e.code.slice(5) - 1);
 }
 
 function drawHold() {
@@ -389,8 +529,12 @@ function loop(ts) {
   if (gameOver || paused) return;
   const dt = ts - lastTime;
   lastTime = ts;
+  // Los timers de efectos avanzan solo aquí: en pausa/selector el loop está cancelado
+  const hadVision = Abilities.isActive(abState, 'vision');
+  abState = Abilities.tick(abState, dt);
+  if (hadVision && !Abilities.isActive(abState, 'vision')) drawNext();
   dropAccum += dt;
-  if (dropAccum >= dropInterval) {
+  if (dropAccum >= Abilities.effectiveInterval(abState, dropInterval)) {
     dropAccum = 0;
     if (!collide(current.shape, current.x, current.y + 1)) {
       current.y++;
@@ -422,19 +566,27 @@ function init() {
   scoreState =Scoring.createScoreState();
   lastWasRotation = false;
   popupsEl.textContent = '';
-  next = randomPiece();
+  abState = Abilities.createState();
+  snapshot = null;
+  selector = null;
+  selectorEl.classList.add('hidden');
+  queue = Array.from({ length: Abilities.ABILITY_CONFIG.VISION_COUNT + 1 }, randomPiece);
+  next = queue[0];
   spawn();
   drawHold();
   updateHUD();
+  updateEnergy();
   overlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
   if (e.code === 'KeyT') { toggleTheme(); return; }
   if (e.code === 'KeyM') { applyMute(!muted); return; }
+  if (selector) { e.preventDefault(); selectorKey(e); return; } // el selector captura el resto (P incluida)
+  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyE') { requestSelector(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':

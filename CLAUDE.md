@@ -24,6 +24,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `scoring.js` is a pure module (no DOM; global `Scoring` in the browser, `require` in Node) holding the points table (`SCORING_CONFIG`), combo, T-spin (3-corner rule), B2B and Perfect Clear logic. `game.js` calls `Scoring.detectTSpin` before `merge` and `Scoring.evaluateLock` in `lockPiece`; `lastWasRotation` is set in `tryRotate` and cleared by any move/drop/spawn. Unit tests: `node --test tests/` (Node only needed for tests).
 
+## Habilidades
+
+`abilities.js` es un módulo puro (global `Abilities`) con energía, registro `ABILITIES`, timers (`tick`) y `takeSnapshot`. `game.js` mantiene `queue` (5+ piezas, `next === queue[0]`), `snapshot` (solo la última pieza, para Deshacer) y `selector` (menú abierto = juego en pausa con el loop cancelado, por eso los timers respetan la pausa). Tecla `E`. Tests en `tests/abilities.test.js`.
+
 ## Gotchas
 
 - Canvas size is hard-coded in `index.html` (`#board` 300×600, `#next-canvas` 120×120). If `COLS`, `ROWS` or `BLOCK` change in `game.js`, update the canvas `width`/`height` to match (`COLS*BLOCK` × `ROWS*BLOCK`).

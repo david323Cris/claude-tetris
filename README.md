@@ -87,6 +87,7 @@ Después abre `http://localhost:8000` en el navegador.
 | `Espacio` | Hard drop (caída instantánea)     |
 | `C` / `Shift` | Hold: reservar pieza (1 uso por pieza) |
 | `P`       | Pausar / reanudar                 |
+| `E`       | Habilidades (con la barra de energía llena; `1`–`5` o ↑↓ + Enter, `Esc` cancela) |
 | `T`       | Cambiar tema claro / oscuro       |
 
 ---

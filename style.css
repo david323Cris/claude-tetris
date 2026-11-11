@@ -343,3 +343,39 @@ kbd {
 .classic-toggle[aria-pressed="true"] { border-color: var(--accent); }
 .classic-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .mute-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Energía y selector de habilidades ---- */
+.energy {
+  position: relative;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--board-bg);
+  overflow: hidden;
+}
+.energy-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+.energy-text {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.energy.ready { animation: energy-glow 1s ease-in-out infinite alternate; border-color: #ffd54f; }
+.energy.ready .energy-fill { background: #ffd54f; }
+.energy.ready .energy-text { color: #0f0f17; }
+@keyframes energy-glow {
+  from { box-shadow: 0 0 2px #ffd54f; }
+  to   { box-shadow: 0 0 12px #ffd54f; }
+}
+@media (prefers-reduced-motion: reduce) { .energy.ready { animation: none; } }
+
+#selector { z-index: 2; }
+.selector-box { color: var(--text); }
+#selector-title { font-size: 20px; font-weight: 800; letter-spacing: 3px; color: var(--accent); }
+#selector-list { list-style: none; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+#selector-list li { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+#selector-list li.sel { border-color: var(--accent); background: var(--kbd-bg); }
+#selector-list small, .selector-box > small { color: var(--muted); font-size: 11px; }
