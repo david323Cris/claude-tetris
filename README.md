@@ -88,6 +88,7 @@ Después abre `http://localhost:8000` en el navegador.
 | `C` / `Shift` | Hold: reservar pieza (1 uso por pieza) |
 | `P`       | Pausar / reanudar                 |
 | `T`       | Cambiar tema claro / oscuro       |
+| `K`       | Cambiar skin (Retro, Neon, Pastel, Pixel art; también con el selector superior; se guarda en `tetris-skin`) |
 
 ---
 

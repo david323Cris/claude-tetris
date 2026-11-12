@@ -13,6 +13,14 @@
     </button>
     <button id="mute-toggle" class="mute-toggle" aria-pressed="false" aria-label="Silenciar efectos" title="Silenciar efectos (M)">🔊</button>
     <button id="classic-toggle" class="classic-toggle" aria-pressed="false" title="Modo clásico: solo las 7 piezas estándar">Modo clásico</button>
+    <label class="skin-picker" title="Cambiar skin (K)">Skin
+      <select id="skin-select" aria-label="Skin visual">
+        <option value="retro">Retro</option>
+        <option value="neon">Neon</option>
+        <option value="pastel">Pastel</option>
+        <option value="pixel">Pixel art</option>
+      </select>
+    </label>
     <h1 class="title">TETRIS</h1>
     <div class="game-container">
       <div class="board-wrap">
@@ -60,6 +68,7 @@
             <li><kbd>P</kbd> pausa</li>
             <li><kbd>T</kbd> tema</li>
             <li><kbd>M</kbd> silenciar</li>
+            <li><kbd>K</kbd> skin</li>
           </ul>
         </div>
       </aside>
@@ -77,6 +86,7 @@
   <script src="scoring.js"></script>
   <script src="pieces.js"></script>
   <script src="powerups.js"></script>
+  <script src="skins.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
