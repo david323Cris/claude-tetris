@@ -104,6 +104,12 @@
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
         <p id="overlay-detail" class="overlay-detail"></p>
+        <form id="record-form" class="record-form hidden" autocomplete="off">
+          <label for="record-name" id="record-msg">¡Nuevo record!</label>
+          <input id="record-name" type="text" maxlength="12" placeholder="Tu nombre" />
+          <button type="submit" class="secondary">Guardar</button>
+        </form>
+        <div id="overlay-records" class="records"></div>
         <button id="restart-btn">Reiniciar</button>
         <button id="next-level-btn" class="secondary hidden">Siguiente nivel</button>
         <button id="levels-btn" class="secondary hidden">Niveles</button>
@@ -136,6 +142,15 @@
       </div>
     </div>
 
+    <div id="start-screen" class="overlay hidden" role="dialog" aria-label="Inicio">
+      <div class="overlay-box">
+        <p class="select-title">TETRIS</p>
+        <div id="start-records" class="records"></div>
+        <button id="start-btn">Jugar</button>
+        <button id="reset-records-btn" class="secondary">Resetear records</button>
+      </div>
+    </div>
+
     <div id="level-select" class="overlay level-select hidden" role="dialog" aria-label="Modo Desafío">
       <div class="overlay-box">
         <p class="select-title">MODO DESAFÍO</p>
@@ -156,6 +171,7 @@
 
   <script src="scoring.js"></script>
   <script src="pieces.js"></script>
+  <script src="records.js"></script>
   <script src="powerups.js"></script>
   <script src="abilities.js"></script>
   <script src="challenge.js"></script>

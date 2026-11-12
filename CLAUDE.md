@@ -40,6 +40,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `P`/`Esc` → `togglePause` muestra `#pause-menu` (Reanudar, Reiniciar, Ver controles, selector de nivel inicial 1–15). `startLevel` (elegido) se copia a `baseLevel` en `init` (solo modo clásico); `speedFor(level)` centraliza la velocidad. Mientras está pausado el listener de teclado ignora todo salvo `P`/`Esc`, y tras reanudar hay 200 ms de guarda (`resumeGuardUntil`).
 
+## Records
+
+`records.js` is a pure module (global `Records`, `require` in Node; localStorage key `tetris-records`): top 5 by score + `bestCombo` + `maxLines`, with `rankOf`, `submit`, `noteStats`, `reset`. `game.js` shows a start screen (`#start-screen`, `menuOpen` blocks keys) with the table and a reset button; classic-mode `endGame` calls `showRecordsOnGameOver` (name form, highlighted row; `init` auto-saves a pending record). Challenge mode doesn't record. Tests: `tests/records.test.js`.
+
 ## Gotchas
 
 - Responsive: `#board` is scaled via CSS (`height` from viewport, `aspect-ratio: 1/2`); the canvas keeps its 300×600 internal resolution. Narrow/touch screens (`@media` in `style.css`) shrink the side panels, hide the keyboard controls list and show `.touch-controls` (buttons with `data-key` that dispatch synthetic `keydown` events handled by the same listener in `game.js`).
