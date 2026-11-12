@@ -77,6 +77,10 @@ Después abre `http://localhost:8000` en el navegador.
 
 ---
 
+## Tabla de records
+
+Las 5 mejores puntuaciones (con nombre), el mejor combo y el máximo de líneas se guardan en el `localStorage` del navegador. Se muestran en la pantalla de inicio y en el Game Over (donde puedes escribir tu nombre); el botón **Borrar records** los elimina. La lógica está en `records.js`.
+
 ## Controles
 
 | Tecla     | Acción                            |

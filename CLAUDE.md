@@ -32,6 +32,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `skins.js` is a pure module (global `Skins`, `require` in Node) with `SKINS` (retro, neon, pastel, pixel: `colors`, `colorsLight`, `drawBlock(ctx,x,y,color,size,alpha)`), `NAMES` and `get(name)` (fallback retro). `game.js` `applySkin` sets `skin`, `documentElement.dataset.skin` (CSS overrides `--board-bg`/`--grid` for neon) and saves `tetris-skin`; `drawBlock` delegates to the skin. Key `K` cycles skins. Tests: `tests/skins.test.js`.
 
+## Records
+
+`records.js` is a pure module (global `Records`, `require` in Node) for the local top-5 table in `localStorage` key `tetris-records` (`load/save/reset/qualifies/insert/updateStats`, tolerant of corrupt data). `game.js` shows `#start-screen` on load (`showStartScreen`, `onStartScreen` blocks gameplay keys until **Jugar**), tracks `maxCombo` (uncapped `scoreState.chain`, >= 2) per game, and in `endGame` calls `finishRecords` (name form + top 5 in the overlay). The keydown listener ignores events from `<input>`. Tests: `tests/records.test.js` (run `node --test tests/*.test.js`).
+
 ## Gotchas
 
 - Canvas size is hard-coded in `index.html` (`#board` 300×600, `#next-canvas` 120×120). If `COLS`, `ROWS` or `BLOCK` change in `game.js`, update the canvas `width`/`height` to match (`COLS*BLOCK` × `ROWS*BLOCK`).
