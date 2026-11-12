@@ -49,6 +49,7 @@ const restartBtn = document.getElementById('restart-btn');
 const themeBtn = document.getElementById('theme-toggle');
 const classicBtn = document.getElementById('classic-toggle');
 const muteBtn = document.getElementById('mute-toggle');
+const skinSelect = document.getElementById('skin-select');
 const comboEl = document.getElementById('combo');
 const b2bEl = document.getElementById('b2b');
 const popupsEl = document.getElementById('popups');
@@ -56,6 +57,8 @@ const freezeEl = document.getElementById('freeze');
 
 let theme = 'dark';
 let gridColor = '#22222e';
+let skin = Skins.get('retro');
+let skinName = 'retro';
 
 let holdPiece, holdUsedThisTurn;
 let classicMode = false, rewardSingle = false, rng = Math.random;
@@ -329,13 +332,9 @@ function drawPowerMark(context, x, y, kind, size, alpha) {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = (theme === 'light' ? COLORS_LIGHT : COLORS)[colorIndex];
+  const color = (theme === 'light' ? skin.colorsLight : skin.colors)[colorIndex];
+  skin.drawBlock(context, x, y, color, size, alpha);
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
   if (colorIndex === WILD) { // comodín: diagonal para distinguirlo
     context.strokeStyle = 'rgba(0,0,0,0.3)';
     context.lineWidth = 2;
@@ -349,7 +348,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
 
 // Agujero redondo de la tuerca, centrado en la celda (x, y)
 function drawNutHole(context, x, y, size, alpha) {
-  const color = (theme === 'light' ? COLORS_LIGHT : COLORS)[NUT];
+  const color = (theme === 'light' ? skin.colorsLight : skin.colors)[NUT];
   const cx = x * size + size / 2;
   const cy = y * size + size / 2;
   context.globalAlpha = alpha ?? 1;
@@ -441,6 +440,18 @@ function applyTheme(t, save = true) {
   if (current && next) { draw(); drawNext(); drawHold(); }
 }
 
+function applySkin(name, save = true) {
+  skin = Skins.get(name);
+  skinName = Skins.NAMES.includes(name) ? name : 'retro';
+  document.documentElement.dataset.skin = skinName;
+  gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || gridColor;
+  if (skinSelect) skinSelect.value = skinName;
+  if (save) {
+    try { localStorage.setItem('tetris-skin', skinName); } catch (_) {}
+  }
+  if (current && next) { draw(); drawNext(); drawHold(); }
+}
+
 function toggleTheme() {
   applyTheme(theme === 'light' ? 'dark' : 'light');
 }
@@ -525,6 +536,11 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'SELECT') {
+    if (e.code === 'Escape') e.target.blur(); // devolver el foco al juego sin cambiar nada
+    return;
+  }
+  if (e.code === 'KeyK' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) { applySkin(Skins.NAMES[(Skins.NAMES.indexOf(skinName) + 1) % Skins.NAMES.length]); return; }
   if (e.code === 'KeyP') { togglePause(); return; }
   if (e.code === 'KeyT') { toggleTheme(); return; }
   if (e.code === 'KeyM') { applyMute(!muted); return; }
@@ -557,6 +573,10 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', init);
+skinSelect.addEventListener('change', () => {
+  applySkin(skinSelect.value);
+  skinSelect.blur(); // evita que Space cambie la selección en vez de hacer hard drop
+});
 themeBtn.addEventListener('click', () => {
   toggleTheme();
   themeBtn.blur(); // evita que Space active el botón en vez de hacer hard drop
@@ -591,4 +611,7 @@ applyMute(savedMuted === '1', false);
 let savedTheme = null;
 try { savedTheme = localStorage.getItem('tetris-theme'); } catch (_) {}
 applyTheme(savedTheme === 'light' ? 'light' : 'dark', false);
+let savedSkin = null;
+try { savedSkin = localStorage.getItem('tetris-skin'); } catch (_) {}
+applySkin(savedSkin, false);
 init();

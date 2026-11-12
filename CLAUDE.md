@@ -28,6 +28,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `powerups.js` is a pure module (global `PowerUps`, `require` in Node) with the effect strategies (`EFFECTS`: bomb, lightning, tint, gravity, freeze, each `apply(board, context)`), `clearFullLines` (wildcard cell = index 13, `WILD`, with chain removal of connected wildcards) and `advanceProgress`. `game.js` marks `next` with `powerUp`/`marked` every 10 cleared lines, triggers the effect in `lockPiece` after `merge` and before `removeFullLines`, and `freezeMs` suppresses gravity in `loop`. Pieces with a power-up can't be held. Tests: `tests/powerups.test.js`.
 
+## Skins
+
+`skins.js` is a pure module (global `Skins`, `require` in Node) with `SKINS` (retro, neon, pastel, pixel: `colors`, `colorsLight`, `drawBlock(ctx,x,y,color,size,alpha)`), `NAMES` and `get(name)` (fallback retro). `game.js` `applySkin` sets `skin`, `documentElement.dataset.skin` (CSS overrides `--board-bg`/`--grid` for neon) and saves `tetris-skin`; `drawBlock` delegates to the skin. Key `K` cycles skins. Tests: `tests/skins.test.js`.
+
 ## Gotchas
 
 - Canvas size is hard-coded in `index.html` (`#board` 300×600, `#next-canvas` 120×120). If `COLS`, `ROWS` or `BLOCK` change in `game.js`, update the canvas `width`/`height` to match (`COLS*BLOCK` × `ROWS*BLOCK`).
