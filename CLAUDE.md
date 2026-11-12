@@ -36,8 +36,12 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `records.js` is a pure module (global `Records`, `require` in Node) for the local top-5 table in `localStorage` key `tetris-records` (`load/save/reset/qualifies/insert/updateStats`, tolerant of corrupt data). `game.js` shows `#start-screen` on load (`showStartScreen`, `onStartScreen` blocks gameplay keys until **Jugar**), tracks `maxCombo` (uncapped `scoreState.chain`, >= 2) per game, and in `endGame` calls `finishRecords` (name form + top 5 in the overlay). The keydown listener ignores events from `<input>`. Tests: `tests/records.test.js` (run `node --test tests/*.test.js`).
 
+## Pause menu
+
+`P`/`Escape` open `#pause-menu` (separate from the game-over `#overlay`): Reanudar, Reiniciar (calls `init()`), Ver controles, Nivel inicial (1–15, localStorage `tetris-start-level`, applied in `init()`). While `paused` the keydown listener blocks all game keys; after resuming, game keys are ignored for 150 ms (`resumedAt`) and `e.repeat` is ignored.
+
 ## Gotchas
 
 - Canvas size is hard-coded in `index.html` (`#board` 300×600, `#next-canvas` 120×120). If `COLS`, `ROWS` or `BLOCK` change in `game.js`, update the canvas `width`/`height` to match (`COLS*BLOCK` × `ROWS*BLOCK`).
-- Level speed formula is duplicated in `clearLines` (`max(100, 1000 - (level-1)*90)`) and the initial `1000` in `init`.
-- The README controls table mentions `X` for rotate in addition to `↑`; the on-page controls list does not.
+- Level speed lives in `speedFor(level)` (`max(100, 1000 - (level-1)*90)`), used by `init` and `lockPiece`. Level = `max(startLevel, floor(lines/10)+1)`.
+- The README controls table mentions `X` for rotate in addition to `↑`; the on-page controls list does not (the pause menu's list does).

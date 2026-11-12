@@ -42,7 +42,8 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Vista previa** de la siguiente pieza.
 - **Sistema de puntuación** clásico de Tetris (100 / 300 / 500 / 800 multiplicado por nivel).
 - **Niveles** que aumentan cada 10 líneas y aceleran la caída.
-- **Pausa** y **Game Over** con opción de reinicio.
+- **Menú de pausa** (`P` / `Esc`): Reanudar, Reiniciar, Ver controles y Nivel inicial (1–15, se guarda en el navegador).
+- **Game Over** con opción de reinicio.
 
 ---
 
@@ -90,7 +91,7 @@ Las 5 mejores puntuaciones (con nombre), el mejor combo y el máximo de líneas 
 | `↓`       | Soft drop (bajar más rápido)      |
 | `Espacio` | Hard drop (caída instantánea)     |
 | `C` / `Shift` | Hold: reservar pieza (1 uso por pieza) |
-| `P`       | Pausar / reanudar                 |
+| `P` / `Esc` | Pausar (menú) / reanudar        |
 | `T`       | Cambiar tema claro / oscuro       |
 | `K`       | Cambiar skin (Retro, Neon, Pastel, Pixel art; también con el selector superior; se guarda en `tetris-skin`) |
 
