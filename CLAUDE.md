@@ -36,9 +36,13 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `challenge.js` is a pure module (global `Challenge`, `require` in Node): level schema validation (`validateLevel`/`registerLevel`), composable modifiers (`MODIFIERS`: `timeLimit`, `garbageInterval`, `presetBoard`, `invisiblePieces`, `invertedRotation`, `targetLines`, each a set of optional hooks), the rules engine (`createRun(level)` → `tick`, `onLock`, `evaluate`, win/lose) and progress persistence (`recordResult`, `isUnlocked`, localStorage key `tetris-challenge-progress`). Levels are data files in `levels/*.js` (each calls `Challenge.registerLevel`) and must be listed as `<script>` in `index.html` before `game.js` (JSON can't be `fetch`ed from `file://`). `game.js` only applies the run: `currentLevel`/`challengeRun` (null = classic), `applyGarbage`, `checkChallenge`/`finishChallenge` (result overlay), level-select overlay. Board cells 14 = garbage, 15 = seeded block. `Pieces.rotateWithKicks(board, piece, dir)` takes `-1` for counter-clockwise. Tests: `tests/challenge.test.js`.
 
+## Menú de pausa
+
+`P`/`Esc` → `togglePause` muestra `#pause-menu` (Reanudar, Reiniciar, Ver controles, selector de nivel inicial 1–15). `startLevel` (elegido) se copia a `baseLevel` en `init` (solo modo clásico); `speedFor(level)` centraliza la velocidad. Mientras está pausado el listener de teclado ignora todo salvo `P`/`Esc`, y tras reanudar hay 200 ms de guarda (`resumeGuardUntil`).
+
 ## Gotchas
 
 - Responsive: `#board` is scaled via CSS (`height` from viewport, `aspect-ratio: 1/2`); the canvas keeps its 300×600 internal resolution. Narrow/touch screens (`@media` in `style.css`) shrink the side panels, hide the keyboard controls list and show `.touch-controls` (buttons with `data-key` that dispatch synthetic `keydown` events handled by the same listener in `game.js`).
 - Canvas size is hard-coded in `index.html` (`#board` 300×600, `#next-canvas` 120×120). If `COLS`, `ROWS` or `BLOCK` change in `game.js`, update the canvas `width`/`height` to match (`COLS*BLOCK` × `ROWS*BLOCK`).
-- Level speed formula is duplicated in `clearLines` (`max(100, 1000 - (level-1)*90)`) and the initial `1000` in `init`.
+- Level speed formula lives in `speedFor(level)`.
 - The README controls table mentions `X` for rotate in addition to `↑`; the on-page controls list does not.
