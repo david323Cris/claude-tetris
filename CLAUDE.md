@@ -36,6 +36,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `challenge.js` is a pure module (global `Challenge`, `require` in Node): level schema validation (`validateLevel`/`registerLevel`), composable modifiers (`MODIFIERS`: `timeLimit`, `garbageInterval`, `presetBoard`, `invisiblePieces`, `invertedRotation`, `targetLines`, each a set of optional hooks), the rules engine (`createRun(level)` → `tick`, `onLock`, `evaluate`, win/lose) and progress persistence (`recordResult`, `isUnlocked`, localStorage key `tetris-challenge-progress`). Levels are data files in `levels/*.js` (each calls `Challenge.registerLevel`) and must be listed as `<script>` in `index.html` before `game.js` (JSON can't be `fetch`ed from `file://`). `game.js` only applies the run: `currentLevel`/`challengeRun` (null = classic), `applyGarbage`, `checkChallenge`/`finishChallenge` (result overlay), level-select overlay. Board cells 14 = garbage, 15 = seeded block. `Pieces.rotateWithKicks(board, piece, dir)` takes `-1` for counter-clockwise. Tests: `tests/challenge.test.js`.
 
+## Records
+
+`records.js` is a pure module (global `Records`, `require` in Node; localStorage key `tetris-records`): top 5 by score + `bestCombo` + `maxLines`, with `rankOf`, `submit`, `noteStats`, `reset`. `game.js` shows a start screen (`#start-screen`, `menuOpen` blocks keys) with the table and a reset button; classic-mode `endGame` calls `showRecordsOnGameOver` (name form, highlighted row; `init` auto-saves a pending record). Challenge mode doesn't record. Tests: `tests/records.test.js`.
+
 ## Gotchas
 
 - Responsive: `#board` is scaled via CSS (`height` from viewport, `aspect-ratio: 1/2`); the canvas keeps its 300×600 internal resolution. Narrow/touch screens (`@media` in `style.css`) shrink the side panels, hide the keyboard controls list and show `.touch-controls` (buttons with `data-key` that dispatch synthetic `keydown` events handled by the same listener in `game.js`).

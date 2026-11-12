@@ -77,6 +77,66 @@ const abilityTitleEl = document.getElementById('ability-title');
 const abilityListEl = document.getElementById('ability-list');
 
 // Modo desafío: las reglas viven en challenge.js; aquí solo se aplican al juego.
+// ---- Tabla de records (solo modo clásico) ----
+const startScreenEl = document.getElementById('start-screen');
+const startRecordsEl = document.getElementById('start-records');
+const overlayRecordsEl = document.getElementById('overlay-records');
+const recordForm = document.getElementById('record-form');
+const recordNameEl = document.getElementById('record-name');
+const recordMsgEl = document.getElementById('record-msg');
+let records = Records.load(localStorageSafe());
+let runMaxCombo = 1;       // mejor combo de la partida en curso
+let pendingRank = -1;      // puesto del top pendiente de guardar (-1 = ninguno)
+let savedRank = -1;        // puesto resaltado tras guardar
+
+function renderRecords(el, highlight = -1) {
+  el.textContent = '';
+  const h = document.createElement('h3');
+  h.textContent = 'MEJORES PUNTUACIONES';
+  const ol = document.createElement('ol');
+  for (let i = 0; i < Records.TOP_SIZE; i++) {
+    const e = records.top[i];
+    const li = document.createElement('li');
+    const a = document.createElement('span');
+    const b = document.createElement('span');
+    if (e) {
+      a.textContent = `${i + 1}. ${e.name}`;
+      b.textContent = e.score.toLocaleString();
+      if (i === highlight) li.className = 'highlight';
+    } else {
+      a.textContent = `${i + 1}. ---`;
+      li.className = 'empty';
+    }
+    li.append(a, b);
+    ol.appendChild(li);
+  }
+  const stats = document.createElement('p');
+  stats.className = 'rec-stats';
+  stats.textContent = `Mejor combo: x${Math.max(records.bestCombo, 1)} · Líneas máx.: ${records.maxLines}`;
+  el.append(h, ol, stats);
+}
+
+// Guarda la puntuación pendiente (nombre del formulario) y resalta su puesto.
+function commitRecord() {
+  if (pendingRank === -1) return;
+  const res = Records.submit(records, {
+    name: recordNameEl.value, score: score, lines, combo: runMaxCombo,
+  });
+  records = res.records;
+  Records.save(localStorageSafe(), records);
+  savedRank = res.rank;
+  pendingRank = -1;
+  recordForm.classList.add('hidden');
+  renderRecords(overlayRecordsEl, savedRank);
+}
+
+function showStartScreen() {
+  menuOpen = true;
+  cancelAnimationFrame(animId);
+  renderRecords(startRecordsEl);
+  startScreenEl.classList.remove('hidden');
+}
+
 let currentLevel = null;   // null = modo clásico
 let challengeRun = null;   // motor de reglas de la partida en curso
 let menuOpen = false;
@@ -202,6 +262,7 @@ function lockPiece() {
     lines: cleared, tspin, level, boardEmpty: Scoring.isBoardEmpty(board),
   });
   scoreState = result.state;
+  runMaxCombo = Math.max(runMaxCombo, Scoring.comboOf(scoreState));
   score += result.points;
   if (cleared) {
     lines += cleared;
@@ -675,7 +736,32 @@ function endGame() {
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlayDetail.textContent = '';
   setOverlayButtons(false, false);
+  showRecordsOnGameOver();
   overlay.classList.remove('hidden');
+}
+
+function showRecordsOnGameOver() {
+  pendingRank = Records.rankOf(records, score);
+  savedRank = -1;
+  if (pendingRank === -1) {
+    // No entra al top, pero combo y líneas máximas sí cuentan
+    records = Records.noteStats(records, { lines, combo: runMaxCombo });
+    Records.save(localStorageSafe(), records);
+    recordForm.classList.add('hidden');
+  } else {
+    recordMsgEl.textContent = pendingRank === 0 ? '¡Nuevo récord! Puesto #1' : `¡Entras al top! Puesto #${pendingRank + 1}`;
+    recordNameEl.value = '';
+    recordForm.classList.remove('hidden');
+  }
+  if (pendingRank === -1) {
+    renderRecords(overlayRecordsEl);
+  } else { // vista previa: inserta la fila resaltada sin guardar aún
+    const saved = records;
+    records = Records.submit(records, { name: '…', score, lines, combo: runMaxCombo }).records;
+    renderRecords(overlayRecordsEl, pendingRank);
+    records = saved;
+    setTimeout(() => recordNameEl.focus(), 0);
+  }
 }
 
 // ---- Modo desafío ----
@@ -841,6 +927,10 @@ function loop(ts) {
 }
 
 function init() {
+  commitRecord(); // si había un record sin guardar, se guarda con el nombre escrito
+  overlayRecordsEl.textContent = '';
+  recordForm.classList.add('hidden');
+  runMaxCombo = 1;
   challengeRun = currentLevel ? Challenge.createRun(currentLevel) : null;
   board = createBoard();
   if (challengeRun) board = challengeRun.setupBoard(board);
@@ -879,6 +969,7 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return; // escribiendo el nombre
   if (menuOpen) return;
   if (abilityMenu) { abilityKey(e); return; }
   if (e.code === 'KeyE') { openAbilitySelect(); return; } // solo abre con la barra llena
@@ -930,6 +1021,17 @@ document.querySelectorAll('.touch-controls button').forEach(btn => {
 });
 
 restartBtn.addEventListener('click', init); // en un desafío, reintenta el mismo nivel
+recordForm.addEventListener('submit', e => { e.preventDefault(); commitRecord(); });
+document.getElementById('start-btn').addEventListener('click', () => {
+  startScreenEl.classList.add('hidden');
+  menuOpen = false;
+  init();
+});
+document.getElementById('reset-records-btn').addEventListener('click', () => {
+  if (!confirm('¿Borrar todos los records?')) return;
+  records = Records.reset(localStorageSafe());
+  renderRecords(startRecordsEl);
+});
 levelsBtn.addEventListener('click', openLevelSelect);
 nextLevelBtn.addEventListener('click', () => {
   const levels = Challenge.getLevels();
@@ -974,3 +1076,4 @@ let savedTheme = null;
 try { savedTheme = localStorage.getItem('tetris-theme'); } catch (_) {}
 applyTheme(savedTheme === 'light' ? 'light' : 'dark', false);
 init();
+showStartScreen(); // pantalla de inicio con records; "Jugar" reinicia la partida

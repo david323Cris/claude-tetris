@@ -533,3 +533,19 @@ kbd {
 
 .level-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .level-item canvas { align-self: center; }
+
+/* Tabla de records */
+.records { font-size: 13px; min-width: 200px; }
+.records:empty { display: none; }
+.records h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: 2px; color: var(--muted); }
+.records ol { list-style: none; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
+.records li { display: flex; justify-content: space-between; gap: 16px; padding: 2px 6px; border-radius: 4px; }
+.records li.empty { color: var(--muted); justify-content: center; }
+.records li.highlight { background: var(--accent); color: var(--accent-text); font-weight: 800; }
+.records .rec-stats { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.record-form { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.record-form label { color: var(--accent); font-weight: 800; }
+.record-form input {
+  text-align: center; padding: 6px; border-radius: 6px; font-size: 14px;
+  border: 1px solid var(--kbd-border); background: var(--board-bg); color: var(--text);
+}
