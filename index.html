@@ -12,6 +12,7 @@
       <button id="mute-toggle" class="mute-toggle" aria-pressed="false" aria-label="Silenciar efectos" title="Silenciar efectos (M)">🔊</button>
       <button id="classic-toggle" class="classic-toggle" aria-pressed="false" title="Modo clásico: solo las 7 piezas estándar">Modo clásico</button>
       <button id="challenge-btn" class="challenge-btn" title="Elegir un nivel del Modo Desafío">Modo Desafío</button>
+      <button id="records-btn" class="challenge-btn" title="Ver la tabla de récords">Récords</button>
       <button id="theme-toggle" class="theme-toggle" role="switch" aria-checked="false" aria-label="Modo claro" title="Cambiar tema (T)">
         <span aria-hidden="true">🌙</span><span class="switch" aria-hidden="true"></span><span aria-hidden="true">☀️</span>
       </button>
@@ -104,6 +105,12 @@
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
         <p id="overlay-detail" class="overlay-detail"></p>
+        <form id="record-form" class="record-form hidden" autocomplete="off">
+          <label for="record-name">¡Nuevo récord! Tu nombre:</label>
+          <input id="record-name" type="text" maxlength="12" placeholder="Anónimo" />
+          <button type="submit" class="secondary">Guardar</button>
+        </form>
+        <div id="overlay-records" class="records hidden"></div>
         <button id="restart-btn">Reiniciar</button>
         <button id="next-level-btn" class="secondary hidden">Siguiente nivel</button>
         <button id="levels-btn" class="secondary hidden">Niveles</button>
@@ -116,6 +123,15 @@
         <ul id="level-list" class="level-list"></ul>
         <button id="classic-play-btn" class="secondary">Jugar modo clásico</button>
         <button id="select-close-btn" class="secondary">Volver</button>
+      </div>
+    </div>
+
+    <div id="records-select" class="overlay level-select hidden" role="dialog" aria-label="Récords">
+      <div class="overlay-box">
+        <p class="select-title">RÉCORDS</p>
+        <div id="records-view" class="records"></div>
+        <button id="records-reset-btn" class="secondary">Resetear récords</button>
+        <button id="records-close-btn" class="secondary">Volver</button>
       </div>
     </div>
 
@@ -132,6 +148,7 @@
   <script src="pieces.js"></script>
   <script src="powerups.js"></script>
   <script src="abilities.js"></script>
+  <script src="records.js"></script>
   <script src="challenge.js"></script>
   <!-- Un archivo por nivel: para agregar uno nuevo, crear levels/<id>.js y listarlo aquí -->
   <script src="levels/sprint.js"></script>
