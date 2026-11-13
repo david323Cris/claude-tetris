@@ -36,6 +36,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `challenge.js` is a pure module (global `Challenge`, `require` in Node): level schema validation (`validateLevel`/`registerLevel`), composable modifiers (`MODIFIERS`: `timeLimit`, `garbageInterval`, `presetBoard`, `invisiblePieces`, `invertedRotation`, `targetLines`, each a set of optional hooks), the rules engine (`createRun(level)` → `tick`, `onLock`, `evaluate`, win/lose) and progress persistence (`recordResult`, `isUnlocked`, localStorage key `tetris-challenge-progress`). Levels are data files in `levels/*.js` (each calls `Challenge.registerLevel`) and must be listed as `<script>` in `index.html` before `game.js` (JSON can't be `fetch`ed from `file://`). `game.js` only applies the run: `currentLevel`/`challengeRun` (null = classic), `applyGarbage`, `checkChallenge`/`finishChallenge` (result overlay), level-select overlay. Board cells 14 = garbage, 15 = seeded block. `Pieces.rotateWithKicks(board, piece, dir)` takes `-1` for counter-clockwise. Tests: `tests/challenge.test.js`.
 
+## Récords locales
+
+`records.js` is a pure module (global `Records`, `require` in Node): top 5 with name/score/lines/combo, `bestCombo` and `maxLines` globals, `rankOf`, `addEntry`, `updateStats`, `sanitizeName` and persistence (`loadRecords`/`saveRecords`, localStorage key `tetris-records`). `game.js` tracks `maxCombo` per game, and `endGame` (classic mode only, not challenges) calls `showGameOverRecords` (updates the maxima, shows the name form if the score qualifies); `init` commits a pending entry as "Anónimo". The "Récords" toolbar button opens `#records-select` (table + reset). The `keydown` listener ignores events whose target is an `<input>`. Tests: `tests/records.test.js`.
+
 ## Gotchas
 
 - Responsive: `#board` is scaled via CSS (`height` from viewport, `aspect-ratio: 1/2`); the canvas keeps its 300×600 internal resolution. Narrow/touch screens (`@media` in `style.css`) shrink the side panels, hide the keyboard controls list and show `.touch-controls` (buttons with `data-key` that dispatch synthetic `keydown` events handled by the same listener in `game.js`).

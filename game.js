@@ -96,6 +96,16 @@ function localStorageSafe() {
   try { return window.localStorage; } catch (_) { return { getItem() { return null; }, setItem() {} }; }
 }
 
+// Récords locales (records.js): tabla top 5 + máximos globales
+let records = Records.loadRecords(localStorageSafe());
+let maxCombo = 0;          // mejor combo de la partida en curso
+let pendingRecord = null;  // { rank } mientras se espera el nombre en el game over
+const recordFormEl = document.getElementById('record-form');
+const recordNameEl = document.getElementById('record-name');
+const overlayRecordsEl = document.getElementById('overlay-records');
+const recordsSelectEl = document.getElementById('records-select');
+const recordsViewEl = document.getElementById('records-view');
+
 let theme = 'dark';
 let gridColor = '#22222e';
 
@@ -217,6 +227,7 @@ function lockPiece() {
     lines: cleared, tspin, level, boardEmpty: Scoring.isBoardEmpty(board),
   });
   scoreState = result.state;
+  maxCombo = Math.max(maxCombo, result.combo);
   score += result.points;
   if (cleared) {
     lines += cleared;
@@ -690,7 +701,91 @@ function endGame() {
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlayDetail.textContent = '';
   setOverlayButtons(false, false);
+  showGameOverRecords();
   overlay.classList.remove('hidden');
+}
+
+// ---- Récords locales ----
+
+function saveRecords() { Records.saveRecords(localStorageSafe(), records); }
+
+// Dibuja el top 5 y los máximos en `container`; `highlight` = índice de la fila a resaltar (-1 = ninguna).
+function renderRecords(container, highlight = -1) {
+  container.textContent = '';
+  const ol = document.createElement('ol');
+  for (let i = 0; i < Records.RECORDS_CONFIG.MAX_ENTRIES; i++) {
+    const e = records.top[i];
+    const li = document.createElement('li');
+    const mk = (cls, text) => {
+      const s = document.createElement('span');
+      if (cls) s.className = cls;
+      s.textContent = text;
+      li.appendChild(s);
+    };
+    if (e) {
+      li.classList.toggle('current', i === highlight);
+      mk('', `${i + 1}.`);
+      mk('rec-name', e.name);
+      mk('rec-score', e.score.toLocaleString());
+      li.title = `${e.lines} líneas · combo x${e.combo}`;
+    } else {
+      li.className = 'empty';
+      mk('', `${i + 1}.`);
+      mk('rec-name', '—');
+      mk('rec-score', '');
+    }
+    ol.appendChild(li);
+  }
+  const stats = document.createElement('p');
+  stats.className = 'rec-stats';
+  stats.textContent = `Mejor combo: x${Math.max(records.bestCombo, 1)} · Máx. líneas: ${records.maxLines}`;
+  container.append(ol, stats);
+}
+
+// Fin de partida clásica: actualiza máximos, y pide nombre si la puntuación entra en el top.
+function showGameOverRecords() {
+  records = Records.updateStats(records, { combo: maxCombo, lines });
+  saveRecords();
+  const rank = Records.rankOf(records, score);
+  pendingRecord = rank >= 0 ? { rank } : null;
+  recordFormEl.classList.toggle('hidden', rank < 0);
+  if (rank >= 0) {
+    overlayDetail.textContent = `Puesto #${rank + 1} del top`;
+    recordNameEl.value = '';
+    setTimeout(() => recordNameEl.focus(), 0);
+  }
+  renderRecords(overlayRecordsEl);
+  overlayRecordsEl.classList.remove('hidden');
+}
+
+// Guarda la partida pendiente en el top con el nombre escrito (o "Anónimo").
+function commitPendingRecord() {
+  if (!pendingRecord) return -1;
+  const res = Records.addEntry(records, { name: recordNameEl.value, score, lines, combo: maxCombo });
+  pendingRecord = null;
+  records = res.records;
+  saveRecords();
+  recordFormEl.classList.add('hidden');
+  return res.rank;
+}
+
+function hideRecordsUI() {
+  pendingRecord = null;
+  recordFormEl.classList.add('hidden');
+  overlayRecordsEl.classList.add('hidden');
+}
+
+function openRecords() {
+  if (abilityMenu) closeAbilitySelect();
+  if (!paused && !gameOver) togglePause();
+  menuOpen = true;
+  renderRecords(recordsViewEl);
+  recordsSelectEl.classList.remove('hidden');
+}
+
+function closeRecords() {
+  menuOpen = false;
+  recordsSelectEl.classList.add('hidden');
 }
 
 // ---- Modo desafío ----
@@ -874,6 +969,9 @@ function loop(ts) {
 }
 
 function init() {
+  commitPendingRecord(); // si se reinicia sin guardar el nombre, entra como "Anónimo"
+  hideRecordsUI();
+  maxCombo = 0;
   challengeRun = currentLevel ? Challenge.createRun(currentLevel) : null;
   board = createBoard();
   if (challengeRun) board = challengeRun.setupBoard(board);
@@ -913,6 +1011,7 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return; // escribiendo el nombre del récord
   if (menuOpen) return;
   if (abilityMenu) { abilityKey(e); return; }
   if (e.code === 'KeyE') { openAbilitySelect(); return; } // solo abre con la barra llena
@@ -976,6 +1075,23 @@ controlsBtn.addEventListener('click', () => {
   const open = pauseControlsEl.classList.toggle('hidden') === false;
   controlsBtn.setAttribute('aria-expanded', String(open));
   controlsBtn.textContent = open ? 'Ocultar controles' : 'Ver controles';
+
+});
+recordFormEl.addEventListener('submit', e => {
+  e.preventDefault();
+  const rank = commitPendingRecord();
+  if (rank < 0) return;
+  overlayDetail.textContent = `¡Récord guardado! Puesto #${rank + 1}`;
+  renderRecords(overlayRecordsEl, rank);
+  restartBtn.focus();
+});
+document.getElementById('records-btn').addEventListener('click', e => { openRecords(); e.currentTarget.blur(); });
+document.getElementById('records-close-btn').addEventListener('click', closeRecords);
+document.getElementById('records-reset-btn').addEventListener('click', () => {
+  if (!confirm('¿Borrar todos los récords?')) return;
+  records = Records.emptyRecords();
+  saveRecords();
+  renderRecords(recordsViewEl);
 });
 restartBtn.addEventListener('click', init); // en un desafío, reintenta el mismo nivel
 levelsBtn.addEventListener('click', openLevelSelect);

@@ -540,3 +540,34 @@ kbd {
 .stepper output { min-width: 2ch; font-size: 22px; font-weight: bold; text-align: center; }
 .pause-controls { list-style: none; margin: 8px 0 0; padding: 0; text-align: left; font-size: 14px; }
 .pause-controls li { margin: 4px 0; }
+
+/* ---- Récords locales ---- */
+.records { width: min(320px, 88vw); font-size: 14px; }
+.records ol { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.records li {
+  display: grid;
+  grid-template-columns: 1.6em 1fr auto;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: left;
+}
+.records li.current { border-color: var(--accent); background: var(--kbd-bg); color: var(--accent); font-weight: 800; }
+.records li.empty { color: var(--muted); }
+.records .rec-score { font-variant-numeric: tabular-nums; }
+.records .rec-stats { font-size: 12px; color: var(--muted); }
+.record-form { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.record-form label { font-size: 13px; color: var(--accent); font-weight: 700; }
+.record-form input {
+  background: var(--board-bg);
+  color: var(--text);
+  border: 1px solid var(--kbd-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  text-align: center;
+  width: 12em;
+}
+.record-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.record-form.hidden, .records.hidden { display: none; }
