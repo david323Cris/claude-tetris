@@ -2,7 +2,7 @@
 // Módulo puro (sin DOM): definición declarativa de piezas, rotación, colisión
 // y generador con RNG inyectable. Global `Pieces` en el navegador, `require` en Node.
 
-// Índice = valor en el tablero = índice en COLORS (game.js). 0 está reservado.
+// Índice = valor en el tablero = índice en las paletas de skins.js. 0 está reservado.
 const PIECE_DEFS = [
   null,
   { name: 'I',      shape: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]] },

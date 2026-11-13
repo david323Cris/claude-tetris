@@ -4,31 +4,7 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#90caf9', // J - azul pálido
-  '#ffb74d', // L - orange
-  '#b0bec5', // Tuerca - gris metálico
-  '#f06292', // Cruz (+) - rosa
-  '#4db6ac', // U - verde azulado
-  '#dce775', // Y - lima
-  '#ff8a65', // Single 1×1 - coral
-  '#eceff1', // Comodín (Tinte)
-  '#607d8b', // Basura (Modo Desafío)
-  '#8d6e63', // Bloque sembrado (Modo Desafío)
-];
-
-// Variantes más saturadas para buen contraste sobre fondo claro
-const COLORS_LIGHT = [
-  null,
-  '#00acc1', '#f9a825', '#8e24aa', '#43a047', '#e53935', '#1e88e5', '#fb8c00', '#78909c',
-  '#d81b60', '#00897b', '#9e9d24', '#f4511e', '#90a4ae', '#455a64', '#6d4c41',
-];
+// Paletas y funciones de dibujo por skin viven en skins.js (módulo con tests)
 
 // Formas y reglas de aparición viven en pieces.js (módulo puro, con tests)
 // PIECES, NUT y WILD ya existen como `const` globales declarados en pieces.js / powerups.js
@@ -49,6 +25,7 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeBtn = document.getElementById('theme-toggle');
+const skinSelect = document.getElementById('skin-select');
 const classicBtn = document.getElementById('classic-toggle');
 const muteBtn = document.getElementById('mute-toggle');
 const comboEl = document.getElementById('combo');
@@ -87,6 +64,7 @@ function localStorageSafe() {
 }
 
 let theme = 'dark';
+let skin = Skins.DEFAULT_SKIN;
 let gridColor = '#22222e';
 
 let holdPiece, holdUsedThisTurn;
@@ -519,13 +497,9 @@ function drawPowerMark(context, x, y, kind, size, alpha) {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = (theme === 'light' ? COLORS_LIGHT : COLORS)[colorIndex];
+  const color = Skins.getPalette(skin, theme)[colorIndex];
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  Skins.getSkin(skin).drawBlock(context, x * size, y * size, size, color);
   if (colorIndex === WILD) { // comodín: diagonal para distinguirlo
     context.strokeStyle = 'rgba(0,0,0,0.3)';
     context.lineWidth = 2;
@@ -539,7 +513,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
 
 // Agujero redondo de la tuerca, centrado en la celda (x, y)
 function drawNutHole(context, x, y, size, alpha) {
-  const color = (theme === 'light' ? COLORS_LIGHT : COLORS)[NUT];
+  const color = Skins.getPalette(skin, theme)[NUT];
   const cx = x * size + size / 2;
   const cy = y * size + size / 2;
   context.globalAlpha = alpha ?? 1;
@@ -649,6 +623,16 @@ function applyTheme(t, save = true) {
     try { localStorage.setItem('tetris-theme', theme); } catch (_) {}
   }
   // Repintar (el loop está cancelado en pausa / game over)
+  if (current && queue) { draw(); drawNext(); drawHold(); }
+}
+
+// Skin: cambia paleta y función de dibujo sin recargar; el fondo del tablero sale de --board-bg
+function applySkin(id, save = true) {
+  skin = Skins.getSkin(id).id;
+  document.documentElement.dataset.skin = skin;
+  skinSelect.value = skin;
+  gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || gridColor;
+  if (save) Skins.saveSkin(localStorageSafe(), skin);
   if (current && queue) { draw(); drawNext(); drawHold(); }
 }
 
@@ -962,6 +946,11 @@ classicBtn.addEventListener('click', () => {
   classicBtn.blur();
 });
 
+skinSelect.addEventListener('change', () => {
+  applySkin(skinSelect.value);
+  skinSelect.blur(); // evita que las flechas/Space cambien el select en vez de jugar
+});
+
 let savedClassic = null;
 try { savedClassic = localStorage.getItem('tetris-classic'); } catch (_) {}
 applyClassic(savedClassic === '1', false);
@@ -973,4 +962,5 @@ applyMute(savedMuted === '1', false);
 let savedTheme = null;
 try { savedTheme = localStorage.getItem('tetris-theme'); } catch (_) {}
 applyTheme(savedTheme === 'light' ? 'light' : 'dark', false);
+applySkin(Skins.loadSkin(localStorageSafe()), false);
 init();

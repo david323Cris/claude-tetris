@@ -36,6 +36,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `challenge.js` is a pure module (global `Challenge`, `require` in Node): level schema validation (`validateLevel`/`registerLevel`), composable modifiers (`MODIFIERS`: `timeLimit`, `garbageInterval`, `presetBoard`, `invisiblePieces`, `invertedRotation`, `targetLines`, each a set of optional hooks), the rules engine (`createRun(level)` → `tick`, `onLock`, `evaluate`, win/lose) and progress persistence (`recordResult`, `isUnlocked`, localStorage key `tetris-challenge-progress`). Levels are data files in `levels/*.js` (each calls `Challenge.registerLevel`) and must be listed as `<script>` in `index.html` before `game.js` (JSON can't be `fetch`ed from `file://`). `game.js` only applies the run: `currentLevel`/`challengeRun` (null = classic), `applyGarbage`, `checkChallenge`/`finishChallenge` (result overlay), level-select overlay. Board cells 14 = garbage, 15 = seeded block. `Pieces.rotateWithKicks(board, piece, dir)` takes `-1` for counter-clockwise. Tests: `tests/challenge.test.js`.
 
+## Skins
+
+`skins.js` (global `Skins`, `require` in Node; listed in `index.html` before `game.js`) holds the 4 skins (`retro`, `neon`, `pastel`, `pixel`): each has `dark`/`light` palettes (index = piece type, same as board values) and `drawBlock(ctx, px, py, size, color)`. `game.js` `drawBlock`/`drawNutHole` delegate to the active skin; `applySkin` sets `html[data-skin]` (CSS adjusts `--board-bg`/`--grid`, e.g. black for neon), repaints and persists in localStorage `tetris-skin`. Selector: `#skin-select` in the toolbar. Tests: `tests/skins.test.js`.
+
 ## Gotchas
 
 - Responsive: `#board` is scaled via CSS (`height` from viewport, `aspect-ratio: 1/2`); the canvas keeps its 300×600 internal resolution. Narrow/touch screens (`@media` in `style.css`) shrink the side panels, hide the keyboard controls list and show `.touch-controls` (buttons with `data-key` that dispatch synthetic `keydown` events handled by the same listener in `game.js`).
