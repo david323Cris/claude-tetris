@@ -32,7 +32,7 @@
             <li><kbd>Space</kbd> caída</li>
             <li><kbd>C</kbd>/<kbd>Shift</kbd> reservar</li>
             <li><kbd>E</kbd> habilidad</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd>/<kbd>Esc</kbd> pausa</li>
             <li><kbd>T</kbd> tema</li>
             <li><kbd>M</kbd> silenciar</li>
           </ul>
@@ -107,6 +107,35 @@
         <button id="restart-btn">Reiniciar</button>
         <button id="next-level-btn" class="secondary hidden">Siguiente nivel</button>
         <button id="levels-btn" class="secondary hidden">Niveles</button>
+      </div>
+    </div>
+
+    <div id="pause-menu" class="overlay hidden" role="dialog" aria-label="Pausa">
+      <div class="overlay-box">
+        <p class="select-title">PAUSA</p>
+        <button id="resume-btn" type="button">Reanudar</button>
+        <button id="pause-restart-btn" type="button" class="secondary">Reiniciar</button>
+        <div id="start-level-row" class="start-level">
+          <span class="label">Nivel inicial</span>
+          <div class="stepper">
+            <button id="start-level-dec" type="button" class="secondary" aria-label="Bajar nivel inicial">−</button>
+            <output id="start-level-value" aria-live="polite">1</output>
+            <button id="start-level-inc" type="button" class="secondary" aria-label="Subir nivel inicial">+</button>
+          </div>
+          <span class="overlay-detail">Se aplica a la próxima partida</span>
+        </div>
+        <button id="controls-btn" type="button" class="secondary" aria-expanded="false">Ver controles</button>
+        <ul id="pause-controls" class="pause-controls hidden">
+          <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+          <li><kbd>↑</kbd>/<kbd>X</kbd> rotar</li>
+          <li><kbd>↓</kbd> bajar</li>
+          <li><kbd>Space</kbd> caída</li>
+          <li><kbd>C</kbd>/<kbd>Shift</kbd> reservar</li>
+          <li><kbd>E</kbd> habilidad</li>
+          <li><kbd>P</kbd>/<kbd>Esc</kbd> pausa</li>
+          <li><kbd>T</kbd> tema</li>
+          <li><kbd>M</kbd> silenciar</li>
+        </ul>
       </div>
     </div>
 

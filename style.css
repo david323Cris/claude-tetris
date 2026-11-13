@@ -533,3 +533,10 @@ kbd {
 
 .level-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .level-item canvas { align-self: center; }
+
+/* Menú de pausa */
+.start-level { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 8px 0; }
+.stepper { display: flex; align-items: center; gap: 12px; }
+.stepper output { min-width: 2ch; font-size: 22px; font-weight: bold; text-align: center; }
+.pause-controls { list-style: none; margin: 8px 0 0; padding: 0; text-align: left; font-size: 14px; }
+.pause-controls li { margin: 4px 0; }

@@ -75,11 +75,21 @@ const visionCtx = visionCanvas.getContext('2d');
 const abilitySelectEl = document.getElementById('ability-select');
 const abilityTitleEl = document.getElementById('ability-title');
 const abilityListEl = document.getElementById('ability-list');
+const pauseMenuEl = document.getElementById('pause-menu');
+const resumeBtn = document.getElementById('resume-btn');
+const pauseRestartBtn = document.getElementById('pause-restart-btn');
+const controlsBtn = document.getElementById('controls-btn');
+const pauseControlsEl = document.getElementById('pause-controls');
+const startLevelRowEl = document.getElementById('start-level-row');
+const startLevelValueEl = document.getElementById('start-level-value');
 
 // Modo desafío: las reglas viven en challenge.js; aquí solo se aplican al juego.
 let currentLevel = null;   // null = modo clásico
 let challengeRun = null;   // motor de reglas de la partida en curso
 let menuOpen = false;
+const MAX_START_LEVEL = 15;
+let startLevel = 1;        // nivel con el que empieza la próxima partida (menú de pausa)
+let inputLockUntil = 0;    // ms: ignora teclas de juego justo tras reanudar
 let challengeProgress = Challenge.loadProgress(localStorageSafe());
 
 function localStorageSafe() {
@@ -98,6 +108,11 @@ const powerUpEvery = PowerUps.POWERUP_CONFIG.EVERY_LINES;
 let ab, abilityMenu = null, pieceStartScore; // habilidades: estado (energía/timers/instantánea) y selector (null = cerrado)
 let queue; // cola de piezas: queue[0] = NEXT; Visión muestra las 5
 let board, current, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+
+// Intervalo de caída (ms) para un nivel
+function speedFor(lvl) {
+  return Math.max(100, 1000 - (lvl - 1) * 90);
+}
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -205,8 +220,8 @@ function lockPiece() {
   score += result.points;
   if (cleared) {
     lines += cleared;
-    level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    level = startLevel + Math.floor(lines / 10);
+    dropInterval = speedFor(level);
     // Cada N líneas, la siguiente pieza lleva un power-up
     const adv = PowerUps.advanceProgress(powerProgress, cleared, powerUpEvery);
     powerProgress = adv.progress;
@@ -749,6 +764,7 @@ function startClassic() {
 function openLevelSelect() {
   if (abilityMenu) closeAbilitySelect(); // cancela el selector de habilidades sin gastar energía
   if (!paused && !gameOver) togglePause();
+  pauseMenuEl.classList.add('hidden');
   menuOpen = true;
   const levels = Challenge.getLevels();
   levelListEl.textContent = '';
@@ -779,24 +795,41 @@ function openLevelSelect() {
 function closeLevelSelect() {
   menuOpen = false;
   levelSelectEl.classList.add('hidden');
+  if (paused && !gameOver) showPauseMenu(); // volvemos al menú de pausa
+}
+
+// ---- Menú de pausa ----
+function setStartLevel(n) {
+  startLevel = Math.max(1, Math.min(MAX_START_LEVEL, n));
+  startLevelValueEl.textContent = startLevel;
+}
+
+function showPauseMenu() {
+  startLevelRowEl.classList.toggle('hidden', !!challengeRun); // los desafíos no usan nivel inicial
+  setStartLevel(startLevel);
+  pauseMenuEl.classList.remove('hidden');
+  resumeBtn.focus();
+}
+
+function hidePauseMenu() {
+  pauseMenuEl.classList.add('hidden');
+  pauseControlsEl.classList.add('hidden');
+  controlsBtn.setAttribute('aria-expanded', 'false');
+  controlsBtn.textContent = 'Ver controles';
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // Space no debe pulsar botones
 }
 
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
-    overlay.classList.add('hidden');
+    hidePauseMenu();
+    inputLockUntil = performance.now() + 250; // evita movimientos accidentales al volver
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlayDetail.textContent = '';
-    overlayTitle.classList.remove('win');
-    setOverlayButtons(false, false);
-    restartBtn.textContent = 'Reiniciar';
-    overlay.classList.remove('hidden');
+    showPauseMenu();
   }
 }
 
@@ -849,10 +882,10 @@ function init() {
   setOverlayButtons(false, false);
   score = 0;
   lines = 0;
-  level = 1;
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = speedFor(level);
   dropAccum = 0;
   lastTime = performance.now();
   holdPiece = null;
@@ -874,6 +907,7 @@ function init() {
   updateChallengeHUD();
   overlayTitle.classList.remove('win');
   overlay.classList.add('hidden');
+  hidePauseMenu();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
@@ -882,10 +916,15 @@ document.addEventListener('keydown', e => {
   if (menuOpen) return;
   if (abilityMenu) { abilityKey(e); return; }
   if (e.code === 'KeyE') { openAbilitySelect(); return; } // solo abre con la barra llena
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { if (!e.repeat) togglePause(); return; }
+  if (paused && !gameOver && !pauseMenuEl.classList.contains('hidden') && !challengeRun &&
+      (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { // nivel inicial con ← →
+    setStartLevel(startLevel + (e.code === 'ArrowRight' ? 1 : -1));
+    return;
+  }
   if (e.code === 'KeyT') { toggleTheme(); return; }
   if (e.code === 'KeyM') { applyMute(!muted); return; }
-  if (paused || gameOver) return;
+  if (paused || gameOver || performance.now() < inputLockUntil) return;
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) { current.x--; lastWasRotation = false; }
@@ -929,6 +968,15 @@ document.querySelectorAll('.touch-controls button').forEach(btn => {
   btn.addEventListener('contextmenu', e => e.preventDefault());
 });
 
+resumeBtn.addEventListener('click', () => { if (paused) togglePause(); });
+pauseRestartBtn.addEventListener('click', init);
+document.getElementById('start-level-dec').addEventListener('click', () => setStartLevel(startLevel - 1));
+document.getElementById('start-level-inc').addEventListener('click', () => setStartLevel(startLevel + 1));
+controlsBtn.addEventListener('click', () => {
+  const open = pauseControlsEl.classList.toggle('hidden') === false;
+  controlsBtn.setAttribute('aria-expanded', String(open));
+  controlsBtn.textContent = open ? 'Ocultar controles' : 'Ver controles';
+});
 restartBtn.addEventListener('click', init); // en un desafío, reintenta el mismo nivel
 levelsBtn.addEventListener('click', openLevelSelect);
 nextLevelBtn.addEventListener('click', () => {
