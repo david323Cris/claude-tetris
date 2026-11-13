@@ -40,6 +40,10 @@ Three files: `index.html` (DOM + two canvases), `style.css`, and `game.js` (all 
 
 `records.js` is a pure module (global `Records`, `require` in Node): top 5 with name/score/lines/combo, `bestCombo` and `maxLines` globals, `rankOf`, `addEntry`, `updateStats`, `sanitizeName` and persistence (`loadRecords`/`saveRecords`, localStorage key `tetris-records`). `game.js` tracks `maxCombo` per game, and `endGame` (classic mode only, not challenges) calls `showGameOverRecords` (updates the maxima, shows the name form if the score qualifies); `init` commits a pending entry as "Anónimo". The "Récords" toolbar button opens `#records-select` (table + reset). The `keydown` listener ignores events whose target is an `<input>`. Tests: `tests/records.test.js`.
 
+## Skins
+
+`skins.js` (global `Skins`, `require` in Node; listed in `index.html` before `game.js`) holds the 4 skins (`retro`, `neon`, `pastel`, `pixel`): each has `dark`/`light` palettes (index = piece type, same as board values) and `drawBlock(ctx, px, py, size, color)`. `game.js` `drawBlock`/`drawNutHole` delegate to the active skin; `applySkin` sets `html[data-skin]` (CSS adjusts `--board-bg`/`--grid`, e.g. black for neon), repaints and persists in localStorage `tetris-skin`. Selector: `#skin-select` in the toolbar. Tests: `tests/skins.test.js`.
+
 ## Gotchas
 
 - Responsive: `#board` is scaled via CSS (`height` from viewport, `aspect-ratio: 1/2`); the canvas keeps its 300×600 internal resolution. Narrow/touch screens (`@media` in `style.css`) shrink the side panels, hide the keyboard controls list and show `.touch-controls` (buttons with `data-key` that dispatch synthetic `keydown` events handled by the same listener in `game.js`).

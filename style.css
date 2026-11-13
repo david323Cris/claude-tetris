@@ -571,3 +571,28 @@ kbd {
 }
 .record-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .record-form.hidden, .records.hidden { display: none; }
+
+/* Skins: el fondo/rejilla del tablero se ajusta; los bloques los dibuja skins.js */
+[data-skin="neon"], [data-skin="neon"][data-theme="light"] {
+  --board-bg: #000000;
+  --grid: #14142a;
+}
+[data-skin="neon"] #board { box-shadow: 0 0 14px rgba(0, 240, 255, 0.35); }
+[data-skin="pastel"] { --grid: #2a2a38; }
+[data-skin="pastel"][data-theme="light"] { --grid: #eceef6; }
+
+.skin-picker { display: inline-flex; align-items: center; }
+.skin-picker select {
+  background: var(--kbd-bg);
+  color: inherit;
+  border: 1px solid var(--kbd-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.skin-picker select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
